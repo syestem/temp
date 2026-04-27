@@ -125,10 +125,11 @@
     cancellingApplicationId: null,
     deletingProfile: false,
     session: null,
-    activeTab: "membership",
+    activeTab: "home",
     profileForm: { full_name: "", faculty: "", group_name: "" },
     fieldErrors: {},
     confirmApplication: null,
+    confirmProfileSave: false,
     debugToday: "",
     showDeleteConfirm: false,
     showDocumentHelp: false,
@@ -573,11 +574,10 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       render();
       return;
     }
-    if (hasApprovedProfileChanges()) {
-      const confirmed = window.confirm("Вы меняете данные подтверждённого профиля. После сохранения статус будет сброшен на «не подтверждено», и профиль нужно будет отправить на повторную проверку. Продолжить?");
-      if (!confirmed) {
-        return;
-      }
+    if (hasApprovedProfileChanges() && !state.confirmProfileSave) {
+      state.confirmProfileSave = true;
+      render();
+      return;
     }
     const wasApproved = state.session?.profile?.verification_status === "approved";
     state.savingProfile = true;
@@ -594,6 +594,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         faculty: result.profile.faculty || "",
         group_name: result.profile.group_name || "",
       };
+      state.confirmProfileSave = false;
       if (wasApproved && result.profile?.verification_status === "not_submitted") {
         pushAlert("success", "Профиль сохранён", "Данные обновлены. Статус профиля сброшен на «не подтверждено», отправьте профиль на повторную проверку.");
       } else {
@@ -1268,7 +1269,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderTabs() {
-    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u043e\u0435"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
+    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
 
     if (state.session?.is_admin) {
       tabs.push(["admin", "\u0410\u0434\u043c\u0438\u043d"]);
@@ -1626,6 +1627,12 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return;
     }
 
+    if (state.session.subscription_ok === false) {
+      const links = state.session.missing_required_channels || ["https://max.ru/poezdatiy", "https://max.ru/id5402113155_gos"];
+      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на оба канала. После подписки закройте и заново откройте mini-app.</p>    <div class="actions">      <a class="btn-primary" href="${escapeHtml(links[0] || "https://max.ru/poezdatiy")}" target="_blank" rel="noreferrer">ПоездаТИЙ</a>      <a class="btn-secondary" href="${escapeHtml(links[1] || "https://max.ru/id5402113155_gos")}" target="_blank" rel="noreferrer">Гос канал</a>    </div>  </section>`;
+      return;
+    }
+
     if (state.session.maintenance_enabled && !state.session.is_admin) {
       content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Технические работы</p>    <h2>Сервис временно недоступен</h2>    <p>${escapeHtml(state.session.maintenance_message || "Проводятся технические работы. Попробуйте позже.")}</p>  </section>`;
       return;
@@ -1697,6 +1704,13 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         return;
       case "save-profile":
         void saveProfile();
+        return;
+      case "confirm-profile-save":
+        void saveProfile();
+        return;
+      case "cancel-profile-save":
+        state.confirmProfileSave = false;
+        render();
         return;
       case "submit-review":
         void submitReview();
