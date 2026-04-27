@@ -164,6 +164,7 @@
     newAdminId: "",
     confirmRemoveAdminId: "",
     adminStatusFilter: "queued",
+    adminDirectoryCategory: "applications",
     adminExportPeriod: "",
     adminQueueDirectionFilter: "all",
     adminQueueMonthFilter: "all",
@@ -1074,7 +1075,54 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   function renderAdminQueueItem(item) {
     const user = item.user || {};
     const status = applicationStatusLabel(item.status);
-    return `<article class="application">  <label class="checkbox-row"><input type="checkbox" data-action="toggle-queue-application" data-application-id="${escapeHtml(item.id)}" ${state.selectedQueueApplicationIds.includes(String(item.id)) ? "checked" : ""}> <span>Выбрать заявку</span></label>  <strong>${escapeHtml(user.full_name || item.full_name || "—")}</strong>  <div class="application__meta">    <span>MAX ID: ${escapeHtml(item.max_user_id || user.max_user_id || "—")}</span>    <span>Факультет: ${escapeHtml(user.faculty || item.faculty || "—")}</span>    <span>Группа: ${escapeHtml(user.group_name || item.group_name || "—")}</span>    <span>Направление: ${item.direction === "gym" ? "Спортзал" : "Бассейн"}</span>    <span>Месяц: ${escapeHtml(monthLabel(item.target_year, item.target_month))}</span>    <span>Очередь: ${escapeHtml(item.queue_position)}</span>    <span>Статус: <span class="status-chip ${escapeHtml(status.className)}">${escapeHtml(status.text)}</span></span>  </div>  <div class="actions">    <button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать абонемент"}</button>  </div></article>`;
+    const photoUrl = item.profile_photo_signed_url || item.user?.profile_photo_url || item.profile_photo_url || "";
+    return `<article class="application">  <label class="checkbox-row"><input type="checkbox" data-action="toggle-queue-application" data-application-id="${escapeHtml(item.id)}" ${state.selectedQueueApplicationIds.includes(String(item.id)) ? "checked" : ""}> <span>Выбрать заявку</span></label>  <strong>${escapeHtml(user.full_name || item.full_name || "—")}</strong>  <div class="admin-review-media">${photoUrl ? `<img class="admin-photo-thumb" src="${escapeHtml(photoUrl)}" alt="Фото профиля">` : `<div class="admin-photo-thumb admin-photo-thumb--empty">Нет фото</div>`}</div>  <div class="application__meta">    <span>MAX ID: ${escapeHtml(item.max_user_id || user.max_user_id || "—")}</span>    <span>Факультет: ${escapeHtml(user.faculty || item.faculty || "—")}</span>    <span>Группа: ${escapeHtml(user.group_name || item.group_name || "—")}</span>    <span>Направление: ${item.direction === "gym" ? "Спортзал" : "Бассейн"}</span>    <span>Месяц: ${escapeHtml(monthLabel(item.target_year, item.target_month))}</span>    <span>Очередь: ${escapeHtml(item.queue_position)}</span>    <span>Статус: <span class="status-chip ${escapeHtml(status.className)}">${escapeHtml(status.text)}</span></span>  </div>  <div class="actions">    <button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать абонемент"}</button>  </div></article>`;
+  }
+
+  function adminDirectoryRows() {
+    if (state.adminDirectoryCategory === "queue") {
+      return getFilteredAdminQueue().map((item) => ({
+        key: `queue-${item.id}`,
+        photoUrl: item.profile_photo_signed_url || item.user?.profile_photo_url || item.profile_photo_url || "",
+        name: item.user?.full_name || item.full_name || "—",
+        maxUserId: item.max_user_id || item.user?.max_user_id || "—",
+        faculty: item.user?.faculty || item.faculty || "—",
+        groupName: item.user?.group_name || item.group_name || "—",
+        category: item.direction === "gym" ? "Спортзал" : "Бассейн",
+        period: monthLabel(item.target_year, item.target_month),
+        statusHtml: `<span class="status-chip ${escapeHtml(applicationStatusLabel(item.status).className)}">${escapeHtml(applicationStatusLabel(item.status).text)}</span>`,
+      }));
+    }
+    if (state.adminDirectoryCategory === "profiles") {
+      return state.pendingReviews.map((user) => ({
+        key: `profile-${user.max_user_id}`,
+        photoUrl: user.profile_photo_url || "",
+        name: user.full_name || "Без имени",
+        maxUserId: user.max_user_id || "—",
+        faculty: user.faculty || "—",
+        groupName: user.group_name || "—",
+        category: "Профиль",
+        period: "На проверке",
+        statusHtml: `<span class="status-chip ${escapeHtml(verificationLabel(user.verification_status || "pending").className)}">${escapeHtml(verificationLabel(user.verification_status || "pending").text)}</span>`,
+      }));
+    }
+    return state.adminApplications.map((app) => ({
+      key: `application-${app.id}`,
+      photoUrl: app.profile_photo_signed_url || app.user?.profile_photo_url || app.profile_photo_url || "",
+      name: app.user?.full_name || app.full_name || "—",
+      maxUserId: app.max_user_id || app.user?.max_user_id || "—",
+      faculty: app.user?.faculty || app.faculty || "—",
+      groupName: app.user?.group_name || app.group_name || "—",
+      category: app.direction === "gym" ? "Спортзал" : "Бассейн",
+      period: monthLabel(app.target_year, app.target_month),
+      statusHtml: `<span class="status-chip ${escapeHtml(applicationStatusLabel(app.status).className)}">${escapeHtml(applicationStatusLabel(app.status).text)}</span>`,
+    }));
+  }
+
+  function renderAdminDirectoryTable() {
+    const rows = adminDirectoryRows();
+    const categoryLabel = state.adminDirectoryCategory === "queue" ? "Очередь" : state.adminDirectoryCategory === "profiles" ? "Профили" : "Заявки";
+    return `<section class="card card--wide">  <p class="card__eyebrow">Общий список</p>  <h2>Пользователи по категориям</h2>  <div class="admin-toolbar">    <label class="field">      <span>Категория</span>      <select id="admin-directory-category">        <option value="applications" ${state.adminDirectoryCategory === "applications" ? "selected" : ""}>Заявки</option>        <option value="queue" ${state.adminDirectoryCategory === "queue" ? "selected" : ""}>Очередь</option>        <option value="profiles" ${state.adminDirectoryCategory === "profiles" ? "selected" : ""}>Профили</option>      </select>    </label>    <div class="section-note">Показано записей: ${rows.length}. Категория: ${categoryLabel}.</div>  </div>  ${rows.length === 0 ? `<p>Нет записей</p>` : `<div class="admin-table-wrap"><table class="admin-table">    <thead>      <tr>        <th>Пользователь</th>        <th>MAX ID</th>        <th>Факультет</th>        <th>Группа</th>        <th>Категория</th>        <th>Период</th>        <th>Статус</th>      </tr>    </thead>    <tbody>${rows.map((row) => `      <tr>        <td data-label="Пользователь"><div class="admin-table-user">${row.photoUrl ? `<img class="admin-table-avatar" src="${escapeHtml(row.photoUrl)}" alt="Фото профиля">` : `<div class="admin-table-avatar admin-table-avatar--empty">Нет фото</div>`}<div><strong>${escapeHtml(row.name)}</strong></div></div></td>        <td data-label="MAX ID">${escapeHtml(row.maxUserId)}</td>        <td data-label="Факультет">${escapeHtml(row.faculty)}</td>        <td data-label="Группа">${escapeHtml(row.groupName)}</td>        <td data-label="Категория">${escapeHtml(row.category)}</td>        <td data-label="Период">${escapeHtml(row.period)}</td>        <td data-label="Статус">${row.statusHtml}</td>      </tr>`).join("")}</tbody>  </table></div>`}</section>`;
   }
 
   renderAdminTab = function renderAdminTabStable() {
@@ -1336,7 +1384,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const deleteSection = `<section class="card card--wide">  <h3>Удаление профиля</h3>  <p class="section-note">Удалятся профиль, загруженные фотографии и все заявки.</p>  ${state.showDeleteConfirm    ? `      <div class="confirm-box confirm-box--warning">        <strong>Удалить профиль и все заявки?</strong>        <div class="actions">          <button class="btn-danger" data-action="confirm-delete-profile" ${state.deletingProfile ? "disabled" : ""}>            ${state.deletingProfile ? "Удаляем..." : "Да, удалить"}          </button>          <button class="btn-secondary" data-action="cancel-delete-profile">Отмена</button>        </div>      </div>    `    : `      <div class="actions">        <button class="btn-danger" data-action="start-delete-profile" ${profile ? "" : "disabled"}>Удалить профиль</button>      </div>    `}</section>`;
 
-    return `${registrationReminder}${userIdCard}${renderProfileStatusSection(profile, status, activeApplication, membershipAccess)}${renderReadinessCard(profile, "Готовность профиля", documentReady && profilePhotoReady && profile?.verification_status === "approved" ? "" : "Когда все 4 шага выполнены, профиль готов к подаче заявки.")}${profileStep}${photoStep}${documentStep}${submitStep}${deleteSection}`;
+    return `${registrationReminder}${userIdCard}${renderProfileStatusSection(profile, status, activeApplication, membershipAccess)}${profileStep}${photoStep}${documentStep}${submitStep}${deleteSection}`;
   }
 
   function renderHomeScheduleCard() {
@@ -1919,6 +1967,12 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     if (event.target.id === "admin-status-filter") {
       state.adminStatusFilter = event.target.value;
       void loadAdminApplications();
+      return;
+    }
+
+    if (event.target.id === "admin-directory-category") {
+      state.adminDirectoryCategory = event.target.value;
+      render();
       return;
     }
 
