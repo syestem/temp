@@ -282,6 +282,11 @@
   color: var(--muted);
 }
 
+.admin-table-actions {
+  display: grid;
+  gap: 8px;
+}
+
 .btn-small {
   padding: 6px 12px;
   font-size: 13px;

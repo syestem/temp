@@ -1083,6 +1083,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     if (state.adminDirectoryCategory === "queue") {
       return getFilteredAdminQueue().map((item) => ({
         key: `queue-${item.id}`,
+        id: item.id,
         photoUrl: item.profile_photo_signed_url || item.user?.profile_photo_url || item.profile_photo_url || "",
         name: item.user?.full_name || item.full_name || "—",
         maxUserId: item.max_user_id || item.user?.max_user_id || "—",
@@ -1091,11 +1092,15 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         category: item.direction === "gym" ? "Спортзал" : "Бассейн",
         period: monthLabel(item.target_year, item.target_month),
         statusHtml: `<span class="status-chip ${escapeHtml(applicationStatusLabel(item.status).className)}">${escapeHtml(applicationStatusLabel(item.status).text)}</span>`,
+        selectable: true,
+        selected: state.selectedQueueApplicationIds.includes(String(item.id)),
+        actionsHtml: `<div class="admin-table-actions"><button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать"}</button><button class="btn-secondary btn-small" data-action="issue-membership-current" data-application-id="${escapeHtml(item.id)}" ${(state.issuingMembershipId === item.id || state.cancellingApplicationId === item.id || state.issuingMembershipId) ? "disabled" : ""}>Выдать на текущий</button><button class="btn-danger btn-small" data-action="admin-cancel-application" data-application-id="${escapeHtml(item.id)}" ${state.cancellingApplicationId === item.id ? "disabled" : ""}>${state.cancellingApplicationId === item.id ? "Отменяем..." : "Отменить"}</button></div>`,
       }));
     }
     if (state.adminDirectoryCategory === "profiles") {
       return state.pendingReviews.map((user) => ({
         key: `profile-${user.max_user_id}`,
+        id: user.max_user_id,
         photoUrl: user.profile_photo_url || "",
         name: user.full_name || "Без имени",
         maxUserId: user.max_user_id || "—",
@@ -1104,10 +1109,14 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         category: "Профиль",
         period: "На проверке",
         statusHtml: `<span class="status-chip ${escapeHtml(verificationLabel(user.verification_status || "pending").className)}">${escapeHtml(verificationLabel(user.verification_status || "pending").text)}</span>`,
+        selectable: true,
+        selected: state.selectedReviewUserIds.includes(user.max_user_id),
+        actionsHtml: `<div class="admin-table-actions"><button class="btn-primary btn-small" data-action="approve-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Одобрить</button><button class="btn-danger btn-small" data-action="reject-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Отклонить</button><button class="btn-secondary btn-small" data-action="delete-selected-users" data-single-user-id="${escapeHtml(user.max_user_id)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button></div>`,
       }));
     }
     return state.adminApplications.map((app) => ({
       key: `application-${app.id}`,
+      id: app.id,
       photoUrl: app.profile_photo_signed_url || app.user?.profile_photo_url || app.profile_photo_url || "",
       name: app.user?.full_name || app.full_name || "—",
       maxUserId: app.max_user_id || app.user?.max_user_id || "—",
@@ -1116,13 +1125,24 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       category: app.direction === "gym" ? "Спортзал" : "Бассейн",
       period: monthLabel(app.target_year, app.target_month),
       statusHtml: `<span class="status-chip ${escapeHtml(applicationStatusLabel(app.status).className)}">${escapeHtml(applicationStatusLabel(app.status).text)}</span>`,
+      actionsHtml: app.status === "queued" || app.status === "approved" || app.status === "issued" ? `<div class="admin-table-actions"><button class="btn-secondary btn-small" data-action="issue-membership-current" data-application-id="${escapeHtml(app.id)}" ${(state.issuingMembershipId === app.id || state.cancellingApplicationId === app.id || state.issuingMembershipId) ? "disabled" : ""}>Выдать на текущий</button><button class="btn-danger btn-small" data-action="admin-cancel-application" data-application-id="${escapeHtml(app.id)}" ${state.cancellingApplicationId === app.id ? "disabled" : ""}>${state.cancellingApplicationId === app.id ? "Отменяем..." : "Отменить"}</button></div>` : "—",
     }));
   }
 
   function renderAdminDirectoryTable() {
     const rows = adminDirectoryRows();
     const categoryLabel = state.adminDirectoryCategory === "queue" ? "Очередь" : state.adminDirectoryCategory === "profiles" ? "Профили" : "Заявки";
-    return `<section class="card card--wide">  <p class="card__eyebrow">Общий список</p>  <h2>Пользователи по категориям</h2>  <div class="admin-toolbar">    <label class="field">      <span>Категория</span>      <select id="admin-directory-category">        <option value="applications" ${state.adminDirectoryCategory === "applications" ? "selected" : ""}>Заявки</option>        <option value="queue" ${state.adminDirectoryCategory === "queue" ? "selected" : ""}>Очередь</option>        <option value="profiles" ${state.adminDirectoryCategory === "profiles" ? "selected" : ""}>Профили</option>      </select>    </label>    <div class="section-note">Показано записей: ${rows.length}. Категория: ${categoryLabel}.</div>  </div>  ${rows.length === 0 ? `<p>Нет записей</p>` : `<div class="admin-table-wrap"><table class="admin-table">    <thead>      <tr>        <th>Пользователь</th>        <th>MAX ID</th>        <th>Факультет</th>        <th>Группа</th>        <th>Категория</th>        <th>Период</th>        <th>Статус</th>      </tr>    </thead>    <tbody>${rows.map((row) => `      <tr>        <td data-label="Пользователь"><div class="admin-table-user">${row.photoUrl ? `<img class="admin-table-avatar" src="${escapeHtml(row.photoUrl)}" alt="Фото профиля">` : `<div class="admin-table-avatar admin-table-avatar--empty">Нет фото</div>`}<div><strong>${escapeHtml(row.name)}</strong></div></div></td>        <td data-label="MAX ID">${escapeHtml(row.maxUserId)}</td>        <td data-label="Факультет">${escapeHtml(row.faculty)}</td>        <td data-label="Группа">${escapeHtml(row.groupName)}</td>        <td data-label="Категория">${escapeHtml(row.category)}</td>        <td data-label="Период">${escapeHtml(row.period)}</td>        <td data-label="Статус">${row.statusHtml}</td>      </tr>`).join("")}</tbody>  </table></div>`}</section>`;
+    const filterControls = state.adminDirectoryCategory === "applications"
+      ? `<label class="field">      <span>Статус</span>      <select id="admin-status-filter">        ${["queued", "approved", "issued", "cancelled"].map((status) => `          <option value="${status}" ${state.adminStatusFilter === status ? "selected" : ""}>${status === "queued" ? "В очереди" : status === "approved" ? "Одобрено" : status === "issued" ? "Выдано" : "Отменено"}</option>        `).join("")}      </select>    </label>`
+      : state.adminDirectoryCategory === "queue"
+        ? `<label class="field">      <span>Направление</span>      <select id="admin-queue-direction-filter">        <option value="all">Все</option>        <option value="gym" ${state.adminQueueDirectionFilter === "gym" ? "selected" : ""}>Спортзал</option>        <option value="pool" ${state.adminQueueDirectionFilter === "pool" ? "selected" : ""}>Бассейн</option>      </select>    </label><label class="field">      <span>Месяц</span>      <select id="admin-queue-month-filter">${[`<option value="all">Все месяцы</option>`, ...Array.from(new Map(state.adminQueue.map((item) => { const value = `${item.target_year}-${String(item.target_month).padStart(2, "0")}`; return [value, `<option value="${value}" ${state.adminQueueMonthFilter === value ? "selected" : ""}>${monthLabel(item.target_year, item.target_month)}</option>`]; })).values())].join("")}</select>    </label><label class="field">      <span>Факультет</span>      <select id="admin-queue-faculty-filter">${[`<option value="all">Все факультеты</option>`, ...Array.from(new Map(state.adminQueue.map((item) => { const faculty = item.user?.faculty || item.faculty || ""; return faculty ? [faculty, `<option value="${escapeHtml(faculty)}" ${state.adminQueueFacultyFilter === faculty ? "selected" : ""}>${escapeHtml(faculty)}</option>`] : null; }).filter(Boolean)).values())].join("")}</select>    </label>`
+        : "";
+    const actionControls = state.adminDirectoryCategory === "profiles"
+      ? `<div class="actions">    <button class="btn-primary btn-small" data-action="approve-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Одобрить выбранные</button>    <button class="btn-danger btn-small" data-action="reject-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Отклонить выбранные</button>    <button class="btn-secondary btn-small" data-action="delete-selected-users" ${!state.selectedReviewUserIds.length || state.managingAdmin ? "disabled" : ""}>Удалить профили</button>  </div>`
+      : state.adminDirectoryCategory === "queue"
+        ? `<div class="actions">    <button class="btn-primary btn-small" data-action="issue-selected-memberships" ${!state.selectedQueueApplicationIds.length || state.issuingMembershipId ? "disabled" : ""}>Выдать выбранные</button>  </div>`
+        : "";
+    return `<section class="card card--wide">  <p class="card__eyebrow">Единая таблица</p>  <h2>Пользователи по категориям</h2>  <div class="admin-toolbar">    <label class="field">      <span>Категория</span>      <select id="admin-directory-category">        <option value="applications" ${state.adminDirectoryCategory === "applications" ? "selected" : ""}>Заявки</option>        <option value="queue" ${state.adminDirectoryCategory === "queue" ? "selected" : ""}>Очередь</option>        <option value="profiles" ${state.adminDirectoryCategory === "profiles" ? "selected" : ""}>Профили</option>      </select>    </label>${filterControls}<div class="section-note">Показано записей: ${rows.length}. Категория: ${categoryLabel}.</div>${actionControls}</div>  ${rows.length === 0 ? `<p>Нет записей</p>` : `<div class="admin-table-wrap"><table class="admin-table">    <thead>      <tr>        <th>Пользователь</th>        <th>MAX ID</th>        <th>Факультет</th>        <th>Группа</th>        <th>Категория</th>        <th>Период</th>        <th>Статус</th>        <th>Действия</th>      </tr>    </thead>    <tbody>${rows.map((row) => `      <tr>        <td data-label="Пользователь"><div class="admin-table-user">${row.selectable ? `<input class="admin-table-check" type="checkbox" data-action="${state.adminDirectoryCategory === "profiles" ? "toggle-review-user" : state.adminDirectoryCategory === "queue" ? "toggle-queue-application" : "noop"}" ${state.adminDirectoryCategory === "profiles" ? `data-user-id="${escapeHtml(row.id)}"` : state.adminDirectoryCategory === "queue" ? `data-application-id="${escapeHtml(row.id)}"` : ""} ${row.selected ? "checked" : ""}>` : ""}${row.photoUrl ? `<img class="admin-table-avatar" src="${escapeHtml(row.photoUrl)}" alt="Фото профиля">` : `<div class="admin-table-avatar admin-table-avatar--empty">Нет фото</div>`}<div><strong>${escapeHtml(row.name)}</strong></div></div></td>        <td data-label="MAX ID">${escapeHtml(row.maxUserId)}</td>        <td data-label="Факультет">${escapeHtml(row.faculty)}</td>        <td data-label="Группа">${escapeHtml(row.groupName)}</td>        <td data-label="Категория">${escapeHtml(row.category)}</td>        <td data-label="Период">${escapeHtml(row.period)}</td>        <td data-label="Статус">${row.statusHtml}</td>        <td data-label="Действия">${row.actionsHtml || "—"}</td>      </tr>`).join("")}</tbody>  </table></div>`}</section>`;
   }
 
   renderAdminTab = function renderAdminTabStable() {
@@ -1168,7 +1188,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
 
-    return `${reviewsSection}${applicationsSection}${queueSection}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
+    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
   };
 
   async function addAdmin() {
@@ -1550,7 +1570,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
 
-    return `${reviewsSection}${applicationsSection}${queueSection}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
+    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
   };
 
   function renderAdminQueueItem(item) {
@@ -1602,7 +1622,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
 
-    return `${reviewsSection}${applicationsSection}${queueSection}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
+    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
   };
 
   function getRenderContext() {
@@ -1921,6 +1941,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         return;
       case "delete-selected-users":
         void deleteUsers(state.selectedReviewUserIds);
+        return;
+      case "delete-user":
+        void deleteUsers([target.dataset.userId].filter(Boolean));
         return;
       case "issue-selected-memberships":
         void issueMemberships(state.selectedQueueApplicationIds.map((item) => Number(item)).filter((item) => item > 0));
