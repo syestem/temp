@@ -318,6 +318,15 @@
     return raw ? JSON.parse(raw) : null;
   }
 
+  function parseApiErrorMessage(error) {
+    const message = String(error?.message || error || "");
+    try {
+      return JSON.parse(message);
+    } catch (_) {
+      return { message };
+    }
+  }
+
   function escapeHtml(value) {
     return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
   }
@@ -560,7 +569,19 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         void ensurePoolScheduleLoaded();
       }
     } catch (error) {
-      pushAlert("error", "Не удалось загрузить данные", String(error.message || error));
+      const parsed = parseApiErrorMessage(error);
+      if (parsed.code === "subscription_required") {
+        state.session = {
+          subscription_ok: false,
+          missing_required_channels: parsed.missing_required_channels || [],
+          is_admin: false,
+          maintenance_enabled: false,
+        };
+      } else if (parsed.code === "subscription_check_unavailable") {
+        pushAlert("error", "Проверка подписок недоступна", parsed.message || "Попробуйте позже.");
+      } else {
+        pushAlert("error", "Не удалось загрузить данные", parsed.message || String(error.message || error));
+      }
     } finally {
       state.loading = false;
       render();
@@ -1629,7 +1650,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     if (state.session.subscription_ok === false) {
       const links = state.session.missing_required_channels || ["https://max.ru/poezdatiy", "https://max.ru/id5402113155_gos"];
-      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на оба канала. После подписки закройте и заново откройте mini-app.</p>    <div class="actions">      <a class="btn-primary" href="${escapeHtml(links[0] || "https://max.ru/poezdatiy")}" target="_blank" rel="noreferrer">ПоездаТИЙ</a>      <a class="btn-secondary" href="${escapeHtml(links[1] || "https://max.ru/id5402113155_gos")}" target="_blank" rel="noreferrer">Гос канал</a>    </div>  </section>`;
+      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на оба канала. После подписки закройте и заново откройте mini-app.</p>    <div class="actions">      <a class="btn-primary" href="${escapeHtml(links[0] || "https://max.ru/poezdatiy")}" target="_blank" rel="noreferrer">Первый Профсоюзный</a>      <a class="btn-secondary" href="${escapeHtml(links[1] || "https://max.ru/id5402113155_gos")}" target="_blank" rel="noreferrer">Новости СГУПС</a>    </div>  </section>`;
       return;
     }
 
