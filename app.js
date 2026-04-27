@@ -1717,8 +1717,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     if (state.session.subscription_ok === false) {
-      const links = state.session.missing_required_channels || ["https://max.ru/poezdatiy", "https://max.ru/id5402113155_gos"];
-      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на оба канала. После подписки закройте и заново откройте mini-app.</p>    <div class="actions">      <a class="btn-primary" href="${escapeHtml(links[0] || "https://max.ru/poezdatiy")}" target="_blank" rel="noreferrer">Первый Профсоюзный</a>      <a class="btn-secondary" href="${escapeHtml(links[1] || "https://max.ru/id5402113155_gos")}" target="_blank" rel="noreferrer">Новости СГУПС</a>    </div>  </section>`;
+      const channels = state.session.required_channels || [];
+      content.innerHTML = `  <section class="card channel-gate-card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на все обязательные каналы. После подписки закройте и заново откройте mini-app.</p>    <div class="channel-gate-links">      ${channels.map((channel, index) => `<a class="channel-link-btn ${index === 0 ? "channel-link-btn--primary" : index === 1 ? "channel-link-btn--secondary" : "channel-link-btn--accent"}" href="${escapeHtml(channel.link || "#")}" target="_blank" rel="noreferrer">${index === 0 ? "📢" : index === 1 ? "📰" : "🎬"} ${escapeHtml(channel.title || `Канал ${index + 1}`)}</a>`).join("")}    </div>  </section>`;
       return;
     }
 
