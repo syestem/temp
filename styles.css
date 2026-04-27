@@ -570,7 +570,8 @@ body {
 }
 
 .status-chip.not_submitted {
-  background: rgba(16, 33, 14, 0.08);
+  background: rgba(150, 255, 33, 0.12);
+  color: var(--muted-strong);
 }
 
 .form-grid {
@@ -1216,10 +1217,11 @@ button:disabled {
   display: grid;
   gap: 8px;
   justify-items: center;
+  color: var(--muted-strong);
 }
 
 .upload-placeholder__hint {
-  color: var(--muted);
+  color: var(--muted-strong);
   font-size: 14px;
 }
 
@@ -1527,6 +1529,20 @@ button:disabled {
 .registration-reminder {
   border-color: rgba(191, 108, 0, 0.24);
   background: linear-gradient(145deg, rgba(255, 249, 238, 0.96), rgba(255, 255, 255, 0.98));
+}
+
+:root[data-theme="dark"] .registration-reminder {
+  border-color: color-mix(in srgb, var(--warning) 36%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--warning) 18%, var(--surface-strong)), color-mix(in srgb, var(--surface) 94%, transparent));
+}
+
+:root[data-theme="dark"] .registration-reminder .card__eyebrow,
+:root[data-theme="dark"] .registration-reminder h3 {
+  color: var(--muted-strong);
+}
+
+:root[data-theme="dark"] .registration-reminder p {
+  color: var(--muted-strong);
 }
 
 @media (min-width: 720px) {

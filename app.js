@@ -141,6 +141,7 @@
     adminQueue: [],
     pendingReviews: [],
     selectedReviewUserIds: [],
+    selectedQueueApplicationIds: [],
     rejectReasonDialogUserIds: [],
     rejectCustomReason: "",
     adminExportPeriods: [],
@@ -420,6 +421,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   function renderNextActionCard(profile, activeApplication, membershipAccess) {
     const nextAction = getNextAction(profile, activeApplication, membershipAccess);
+    if (!profile && state.activeTab === "profile") {
+      return "";
+    }
     const actionAttributes = nextAction.action === "switch-tab"? `data-action="switch-tab" data-tab="${escapeHtml(nextAction.tab)}"`: `data-action="${escapeHtml(nextAction.action)}"`;
 
     return `<article class="card action-card">  <p class="card__eyebrow">${escapeHtml(nextAction.eyebrow)}</p>  <h3>${escapeHtml(nextAction.title)}</h3>  <p>${escapeHtml(nextAction.description)}</p>  <div class="actions">    <button class="btn-primary" ${actionAttributes}>${escapeHtml(nextAction.buttonLabel)}</button>  </div></article>
@@ -854,6 +858,23 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       await Promise.all([loadAdminApplications(), loadAdminQueue(), loadSession()]);
     } catch (error) {
       pushAlert("error", "Не удалось выдать абонемент", error.message || "Повторите попытку позже.");
+    } finally {
+      state.issuingMembershipId = null;
+      render();
+    }
+  }
+
+  async function issueMemberships(applicationIds) {
+    if (!state.session?.is_admin || !applicationIds.length) return;
+    state.issuingMembershipId = "bulk";
+    render();
+    try {
+      await apiPost("/admin/issue-memberships", buildPayload({ application_ids: applicationIds }));
+      state.selectedQueueApplicationIds = [];
+      pushAlert("success", "Абонементы выданы", `Обновлено заявок: ${applicationIds.length}.`);
+      await Promise.all([loadAdminApplications(), loadAdminQueue(), loadSession()]);
+    } catch (error) {
+      pushAlert("error", "Не удалось выдать абонементы", error.message || "Повторите попытку позже.");
     } finally {
       state.issuingMembershipId = null;
       render();
@@ -1324,8 +1345,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const queueFacultyOptions = [`<option value="all">Все факультеты</option>`, ...Array.from(new Map(state.adminQueue.map((item) => {
       const faculty = item.user?.faculty || item.faculty || "";
-      return faculty ? [[faculty, `<option value="${escapeHtml(faculty)}" ${state.adminQueueFacultyFilter === faculty ? "selected" : ""}>${escapeHtml(faculty)}</option>`]] : [];
-    }).flat()).values())].join("");
+      return faculty ? [faculty, `<option value="${escapeHtml(faculty)}" ${state.adminQueueFacultyFilter === faculty ? "selected" : ""}>${escapeHtml(faculty)}</option>`] : null;
+    }).filter(Boolean)).values())].join("");
 
     const filteredQueue = getFilteredAdminQueue();
 
