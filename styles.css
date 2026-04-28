@@ -1659,12 +1659,12 @@ button:disabled {
 }
 
 .membership-card__title {
-  font-size: 1.7rem;
+  font-size: 2.2rem;
   font-weight: 900;
 }
 
 .membership-card__serial-value {
-  font-size: 1.35rem;
+  font-size: 1.8rem;
   font-weight: 900;
 }
 
@@ -1680,13 +1680,13 @@ button:disabled {
 }
 
 .membership-card__label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
 }
 
 .membership-card__value {
   min-height: 26px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
 }
 
