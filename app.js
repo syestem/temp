@@ -1773,6 +1773,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
           state.scheduleEntryPoint = "pool";
           void ensurePoolScheduleLoaded();
         }
+        if (state.activeTab === "schedule") {
+          state.scheduleEntryPoint = null;
+        }
         if (state.activeTab === "admin" && state.session?.is_admin) {
           void ensureAdminDataLoaded();
         }
