@@ -135,6 +135,7 @@
     showDocumentHelp: false,
     membershipModalOpen: false,
     membershipSecondsLeft: 15,
+    membershipPhotoLoaded: false,
     alerts: [],
     theme: localStorage.getItem("theme") || "dark",
     adminList: [],
@@ -492,6 +493,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   function closeMembership() {
     state.membershipModalOpen = false;
     state.membershipSecondsLeft = 15;
+    state.membershipPhotoLoaded = false;
     if (membershipTimerId) {clearInterval(membershipTimerId);membershipTimerId = null;
     }
   }
@@ -504,6 +506,13 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     state.membershipSecondsLeft = 15;
     membershipTimerId = setInterval(() => {const secondsLeft = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));if (state.membershipSecondsLeft !== secondsLeft) {  state.membershipSecondsLeft = secondsLeft;  render();}if (secondsLeft <= 0) {  closeMembership();  render();}
     }, 250);
+  }
+
+  function handleMembershipPhotoLoaded() {
+    if (!state.membershipModalOpen || state.membershipPhotoLoaded) return;
+    state.membershipPhotoLoaded = true;
+    startMembershipTimer();
+    render();
   }
 
   function pushAlert(kind, title, body) {
@@ -618,7 +627,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       };
       state.confirmProfileSave = false;
       if (wasApproved && result.profile?.verification_status === "not_submitted") {
-        pushAlert("success", "Профиль сохранён", "Данные обновлены. Статус профиля сброшен на «не подтверждено», отправьте профиль на повторную проверку.");
+        pushAlert("success", "Профиль сохранён", "Данные обновлены. Профиль отправится на повторную модерацию, а выданный абонемент будет аннулирован.");
       } else {
         pushAlert("success", "Профиль сохранён", "Данные профиля успешно обновлены.");
       }
@@ -1728,6 +1737,18 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     content.innerHTML = `${renderTabs()}${renderActiveTab()}${renderMembershipModal()}`;
+    if (state.membershipModalOpen) {
+      const membershipPhoto = content.querySelector(".membership-card__photo img");
+      if (membershipPhoto) {
+        if (membershipPhoto.complete) {
+          handleMembershipPhotoLoaded();
+        } else {
+          membershipPhoto.addEventListener("load", handleMembershipPhotoLoaded, { once: true });
+        }
+      } else if (!state.membershipPhotoLoaded) {
+        handleMembershipPhotoLoaded();
+      }
+    }
     enhanceAdminButtons();
   }
 

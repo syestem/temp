@@ -1549,15 +1549,15 @@ button:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 80px 1fr;
-  gap: 10px;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
 }
 
 .membership-card__photo {
-  width: 80px;
-  height: 102px;
+  width: 112px;
+  height: 144px;
   border: 1px solid rgba(16, 33, 14, 0.52);
-  border-radius: 10px;
+  border-radius: 14px;
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -1669,13 +1669,13 @@ button:disabled {
 }
 
 .membership-card__grid {
-  grid-template-columns: 112px 1fr;
-  gap: 12px;
+  grid-template-columns: 132px 1fr;
+  gap: 14px;
 }
 
 .membership-card__photo {
-  width: 112px;
-  height: 144px;
+  width: 132px;
+  height: 170px;
   border-radius: 14px;
 }
 
