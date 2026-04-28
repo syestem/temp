@@ -1653,6 +1653,57 @@ button:disabled {
   border: 1px solid rgba(16, 33, 14, 0.52);
 }
 
+.membership-card__visits,
+.membership-card__stamp {
+  display: none;
+}
+
+.membership-card__title {
+  font-size: 1.7rem;
+  font-weight: 900;
+}
+
+.membership-card__serial-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.membership-card__grid {
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+}
+
+.membership-card__photo {
+  width: 112px;
+  height: 144px;
+  border-radius: 14px;
+}
+
+.membership-card__label {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.membership-card__value {
+  min-height: 26px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.membership-card__footer {
+  border-top: 0;
+  padding-top: 0;
+  justify-content: flex-end;
+}
+
+.membership-card__issuer span {
+  font-size: 11px;
+}
+
+.membership-card__issuer strong {
+  font-size: 1rem;
+}
+
 .helper-list {
   margin: 0;
   padding-left: 18px;
