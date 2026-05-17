@@ -1329,7 +1329,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderTabs() {
-    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"], ["bug-report", "\u041e\u0448\u0438\u0431\u043a\u0430"]];
+    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
 
     if (state.session?.is_admin) {
       tabs.push(["admin", "\u0410\u0434\u043c\u0438\u043d"]);
@@ -1376,6 +1376,10 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     const deleteSection = `<section class="card card--wide">  <h3>Удаление профиля</h3>  <p class="section-note">Удалятся профиль, загруженные фотографии и все заявки.</p>  ${state.showDeleteConfirm    ? `      <div class="confirm-box confirm-box--warning">        <strong>Удалить профиль и все заявки?</strong>        <div class="actions">          <button class="btn-danger" data-action="confirm-delete-profile" ${state.deletingProfile ? "disabled" : ""}>            ${state.deletingProfile ? "Удаляем..." : "Да, удалить"}          </button>          <button class="btn-secondary" data-action="cancel-delete-profile">Отмена</button>        </div>      </div>    `    : `      <div class="actions">        <button class="btn-danger" data-action="start-delete-profile" ${profile ? "" : "disabled"}>Удалить профиль</button>      </div>    `}</section>`;
 
     return `${registrationReminder}${userIdCard}${renderProfileStatusSection(profile, status, activeApplication, membershipAccess)}${profileStep}${photoStep}${documentStep}${submitStep}${deleteSection}`;
+  }
+
+  function renderBugReportButton() {
+    return `<div class="bug-report-footer"><button class="btn-bug-report" data-action="switch-tab" data-tab="bug-report">Сообщить об ошибке</button></div>`;
   }
 
   function renderHomeScheduleCard() {
@@ -1632,7 +1636,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return;
     }
 
-    content.innerHTML = `${renderTabs()}${renderActiveTab()}${renderMembershipModal()}`;
+    content.innerHTML = `${renderTabs()}${renderActiveTab()}${renderBugReportButton()}${renderMembershipModal()}`;
     if (state.membershipModalOpen) {
       const membershipPhoto = content.querySelector(".membership-card__photo img");
       if (membershipPhoto) {
