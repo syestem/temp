@@ -116,6 +116,7 @@
     initData: "",
     apiBaseUrl: "",
     loading: true,
+    loadError: "",
     savingProfile: false,
     uploadingDocument: false,
     uploadingPhoto: false,
@@ -668,9 +669,10 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   async function loadSession() {
     state.loading = true;
+    state.loadError = "";
     render();
     try {
-      state.session = await apiPost("/session", buildPayload());
+      state.session = await loadSessionWithRetry();
       state.maintenanceEnabled = Boolean(state.session.maintenance_enabled);
       state.maintenanceMessage = String(state.session.maintenance_message || "");
       state.maintenanceDraftEnabled = state.maintenanceEnabled;
@@ -698,12 +700,28 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       } else if (parsed.code === "subscription_check_unavailable") {
         pushAlert("error", "Проверка подписок недоступна", parsed.message || "Попробуйте позже.");
       } else {
-        pushAlert("error", "Не удалось загрузить данные", parsed.message || String(error.message || error));
+        state.loadError = parsed.message || String(error.message || error);
+        pushAlert("error", "Не удалось загрузить данные", state.loadError);
       }
     } finally {
       state.loading = false;
       render();
     }
+  }
+
+  async function loadSessionWithRetry() {
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await apiPost("/session", buildPayload());
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await sleep(700 + attempt * 900);
+        }
+      }
+    }
+    throw lastError;
   }
 
 
@@ -1772,8 +1790,13 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     if (!isConfigured()) {content.innerHTML = `  <div class="error-screen">    <h2>Ошибка конфигурации</h2>    <p>Mini-app не настроен</p>    <p class="section-note">Проверьте опубликованный config.js. В нём должен быть задан apiBaseUrl.</p>  </div>`;return;
     }
 
-    if (state.loading || !state.session) {
+    if (state.loading) {
       content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Загрузка</p>    <h2>Подгружаем профиль и очередь</h2>    <p>Подождите несколько секунд.</p>  </section>${renderDeveloperFooter()}`;
+      return;
+    }
+
+    if (!state.session) {
+      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Ошибка загрузки</p>    <h2>Не удалось открыть mini-app</h2>    <p>${escapeHtml(state.loadError || "Сеть mini-app временно недоступна или запрос блокируется webview.")}</p>    <div class="actions"><button class="btn-primary" data-action="retry-session" type="button">Повторить</button></div>  </section>${renderDeveloperFooter()}`;
       return;
     }
 
@@ -1819,6 +1842,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     switch (action) {
+      case "retry-session":
+        void loadSession();
+        return;
       case "switch-tab":
         state.activeTab = target.dataset.tab;
         if (state.activeTab === "home" && !state.poolScheduleDay && !state.loadingSchedule) {
