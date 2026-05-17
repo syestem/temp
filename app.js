@@ -1434,7 +1434,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   function renderUploadCard({ title, hint, readyLabel, ready, previewUrl, placeholderTitle, placeholderHint, inputAction, buttonText, buttonClass, uploading, alt }) {
     const safePreviewUrl = String(previewUrl || "").trim();
-    const canPreview = safePreviewUrl && !safePreviewUrl.includes("<") && !safePreviewUrl.includes(">") && /^(https?:|data:image\/|\.\/|\/|storage\/)/i.test(safePreviewUrl);
+    const canPreview = safePreviewUrl && !safePreviewUrl.includes("<") && !safePreviewUrl.includes(">") && /^(https?:|blob:|data:image\/|\.\/|\/|storage\/)/i.test(safePreviewUrl);
     return `<div class="upload-card">  <label class="upload-placeholder" data-placeholder-title="${escapeHtml(placeholderTitle)}" data-placeholder-hint="${escapeHtml(placeholderHint)}">    ${canPreview      ? `<img class="upload-preview-image" src="${escapeHtml(safePreviewUrl)}" alt="${escapeHtml(alt)}">`      : `        <div class="upload-placeholder__content">          <strong>${escapeHtml(placeholderTitle)}</strong>          <span class="upload-placeholder__hint">${escapeHtml(placeholderHint)}</span>        </div>      `}    <input type="file" accept="image/*" data-action="${escapeHtml(inputAction)}" ${uploading ? "disabled" : ""}>  </label>  <div class="upload-side">    <div class="status-chip ${ready ? "approved" : "not_submitted"}">${escapeHtml(readyLabel)}</div>    <p class="section-note">${escapeHtml(hint)}</p>    <label class="${escapeHtml(buttonClass)}">      ${uploading ? "Загрузка..." : escapeHtml(buttonText)}      <input type="file" accept="image/*" data-action="${escapeHtml(inputAction)}" hidden ${uploading ? "disabled" : ""}>    </label>  </div></div>
     `;
   }
