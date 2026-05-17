@@ -2068,10 +2068,10 @@ button:disabled {
 }
 
 .developer-footer img {
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 @media (max-width: 719px) {
