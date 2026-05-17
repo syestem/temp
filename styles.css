@@ -2021,6 +2021,70 @@ button:disabled {
   transform: translateY(0);
 }
 
+.maintenance-admin-banner {
+  position: sticky;
+  top: 72px;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--warning) 42%, transparent);
+  border-radius: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--warning) 20%, var(--surface-strong)), color-mix(in srgb, var(--surface) 96%, transparent));
+  box-shadow: var(--shadow-soft);
+}
+
+.maintenance-admin-banner div {
+  display: grid;
+  gap: 4px;
+}
+
+.maintenance-admin-banner strong {
+  color: var(--warning);
+  font-size: 1rem;
+}
+
+.maintenance-admin-banner span {
+  color: var(--muted-strong);
+  line-height: 1.4;
+}
+
+.maintenance-screen {
+  border-color: color-mix(in srgb, var(--warning) 38%, transparent);
+}
+
+.developer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 18px 0 4px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.developer-footer img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+@media (max-width: 719px) {
+  .maintenance-admin-banner {
+    top: 96px;
+    display: grid;
+  }
+
+  .maintenance-admin-banner .btn-small {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

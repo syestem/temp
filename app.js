@@ -1410,6 +1410,15 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     return `<div class="bug-report-footer"><button class="btn-bug-report" data-action="switch-tab" data-tab="bug-report">Сообщить об ошибке</button></div>`;
   }
 
+  function renderMaintenanceAdminBanner() {
+    if (!state.session?.is_admin || !state.maintenanceEnabled) return "";
+    return `<section class="maintenance-admin-banner" role="status">  <div>    <strong>Техработы включены</strong>    <span>${escapeHtml(state.maintenanceMessage || "Пользователи видят экран техработ, бот отвечает сообщением о недоступности.")}</span>  </div>  <button class="btn-warning btn-small" data-action="switch-tab" data-tab="admin" type="button">Открыть управление</button></section>`;
+  }
+
+  function renderDeveloperFooter() {
+    return `<footer class="developer-footer" aria-label="Информация о разработчике">  <img src="../logo/fbilogo.svg" alt="Логотип ФБИ" loading="lazy">  <span>Разработано ФБИ</span></footer>`;
+  }
+
   function renderHomeScheduleCard() {
     if (state.loadingSchedule) {
       return `<section class="card card--wide">  <p class="card__eyebrow">Расписание</p>  <h3>Подгружаем свободные дорожки</h3>  <p>Смотрим ближайшие слоты бассейна.</p></section>`;
@@ -1649,22 +1658,22 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     if (state.loading || !state.session) {
-      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Загрузка</p>    <h2>Подгружаем профиль и очередь</h2>    <p>Подождите несколько секунд.</p>  </section>`;
+      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Загрузка</p>    <h2>Подгружаем профиль и очередь</h2>    <p>Подождите несколько секунд.</p>  </section>${renderDeveloperFooter()}`;
       return;
     }
 
     if (state.session.subscription_ok === false) {
       const channels = state.session.required_channels || [];
-      content.innerHTML = `  <section class="card channel-gate-card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на все обязательные каналы. После подписки закройте и заново откройте mini-app.</p>    <div class="channel-gate-links">      ${channels.map((channel, index) => `<a class="channel-link-btn ${index === 0 ? "channel-link-btn--primary" : index === 1 ? "channel-link-btn--secondary" : "channel-link-btn--accent"}" href="${escapeHtml(channel.link || "#")}" target="_blank" rel="noreferrer">${index === 0 ? "📢" : index === 1 ? "📰" : "🎬"} ${escapeHtml(channel.title || `Канал ${index + 1}`)}</a>`).join("")}    </div>  </section>`;
+      content.innerHTML = `  <section class="card channel-gate-card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на все обязательные каналы. После подписки закройте и заново откройте mini-app.</p>    <div class="channel-gate-links">      ${channels.map((channel, index) => `<a class="channel-link-btn ${index === 0 ? "channel-link-btn--primary" : index === 1 ? "channel-link-btn--secondary" : "channel-link-btn--accent"}" href="${escapeHtml(channel.link || "#")}" target="_blank" rel="noreferrer">${index === 0 ? "📢" : index === 1 ? "📰" : "🎬"} ${escapeHtml(channel.title || `Канал ${index + 1}`)}</a>`).join("")}    </div>  </section>${renderDeveloperFooter()}`;
       return;
     }
 
     if (state.session.maintenance_enabled && !state.session.is_admin) {
-      content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Технические работы</p>    <h2>Сервис временно недоступен</h2>    <p>${escapeHtml(state.session.maintenance_message || "Проводятся технические работы. Попробуйте позже.")}</p>  </section>`;
+      content.innerHTML = `  <section class="card maintenance-screen">    <p class="card__eyebrow">Технические работы</p>    <h2>Сервис временно недоступен</h2>    <p>${escapeHtml(state.session.maintenance_message || "Проводятся технические работы. Попробуйте позже.")}</p>  </section>${renderDeveloperFooter()}`;
       return;
     }
 
-    content.innerHTML = `${renderTabs()}${renderActiveTab()}${renderBugReportButton()}${renderMembershipModal()}`;
+    content.innerHTML = `${renderTabs()}${renderMaintenanceAdminBanner()}${renderActiveTab()}${renderBugReportButton()}${renderDeveloperFooter()}${renderMembershipModal()}`;
     if (state.membershipModalOpen) {
       const membershipPhoto = content.querySelector(".membership-card__photo img");
       if (membershipPhoto) {
