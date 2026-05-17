@@ -114,6 +114,8 @@
 
   const state = {
     initData: "",
+    adminToken: sessionStorage.getItem("adminToken") || "",
+    isAdminStandalone: location.pathname.endsWith("/admin.html") || new URLSearchParams(location.search).get("admin") === "1",
     apiBaseUrl: "",
     loading: true,
     loadError: "",
@@ -333,8 +335,16 @@
   }
 
   function buildPayload(extra = {}) {
-    return {initData: state.initData,...extra,
-    };
+    const auth = state.adminToken ? { adminToken: state.adminToken } : { initData: state.initData };
+    return {...auth,...extra};
+  }
+
+  function appendAuthFormData(formData) {
+    if (state.adminToken) {
+      formData.append("adminToken", state.adminToken);
+      return;
+    }
+    formData.append("initData", state.initData);
   }
 
   function describeFetchFailure(path, error) {
@@ -713,8 +723,15 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        if (state.adminToken) {
+          return await apiPost("/admin/auth/session", { adminToken: state.adminToken });
+        }
         return await apiPost("/session", buildPayload());
       } catch (error) {
+        if (state.adminToken && attempt === 0) {
+          sessionStorage.removeItem("adminToken");
+          state.adminToken = "";
+        }
         lastError = error;
         if (attempt < 2) {
           await sleep(700 + attempt * 900);
@@ -722,6 +739,52 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       }
     }
     throw lastError;
+  }
+
+  function renderAdminLogin(message = "") {
+    state.loading = false;
+    content.innerHTML = `<section class="card card--wide admin-login-card">  <p class="card__eyebrow">Админ-панель</p>  <h1>Вход для администраторов</h1>  <p>Откройте панель с компьютера и авторизуйтесь через MAX. После входа будут доступны заявки, очередь, модерация и рассылки.</p>  ${message ? `<p class="section-note">${escapeHtml(message)}</p>` : ""}  <div class="actions"><button class="btn-primary" data-action="admin-login-max" type="button">Логин через MAX</button></div></section>`;
+  }
+
+  async function startAdminLogin() {
+    try {
+      const result = await apiPost("/admin/auth/start", {});
+      if (!result?.auth_url) {
+        throw new Error("Backend не вернул ссылку авторизации MAX.");
+      }
+      window.location.href = result.auth_url;
+    } catch (error) {
+      pushAlert("error", "Не удалось начать вход", parseApiErrorMessage(error).message || String(error.message || error));
+      renderAdminLogin("Проверьте настройки MAX OAuth на backend.");
+    }
+  }
+
+  async function finishAdminLoginIfNeeded() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code") || "";
+    const oauthState = params.get("state") || "";
+    if (!state.isAdminStandalone || !code || !oauthState) return false;
+    try {
+      const result = await apiPost("/admin/auth/callback", { code, state: oauthState });
+      state.adminToken = result.adminToken || "";
+      if (!state.adminToken) {
+        throw new Error("Backend не вернул adminToken.");
+      }
+      sessionStorage.setItem("adminToken", state.adminToken);
+      state.session = result.session;
+      state.activeTab = "admin";
+      history.replaceState(null, "", location.pathname);
+      await ensureAdminDataLoaded(true);
+      state.loading = false;
+      render();
+      return true;
+    } catch (error) {
+      sessionStorage.removeItem("adminToken");
+      state.adminToken = "";
+      pushAlert("error", "Вход не выполнен", parseApiErrorMessage(error).message || String(error.message || error));
+      renderAdminLogin("Попробуйте войти через MAX ещё раз.");
+      return true;
+    }
   }
 
 
@@ -792,7 +855,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       const uploadFile = await compressImageFile(file, { maxSide: 1400, quality: 0.78 });
 
       const formData = new FormData();
-      formData.append("initData", state.initData);
+      appendAuthFormData(formData);
       formData.append("photo", uploadFile);
 
       const result = await apiMultipart("/profile/photo", formData);
@@ -829,7 +892,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       const uploadFile = await compressImageFile(file, { maxSide: 1800, quality: 0.82 });
 
       const formData = new FormData();
-      formData.append("initData", state.initData);
+      appendAuthFormData(formData);
       formData.append("document", uploadFile);
 
       const result = await apiMultipart("/profile/document", formData);
@@ -892,7 +955,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     try {
       const screenshots = await compressImageFiles(state.bugReportScreenshots, { maxSide: 1600, quality: 0.76 });
       const formData = new FormData();
-      formData.append("initData", state.initData);
+      appendAuthFormData(formData);
       formData.append("description", description);
       screenshots.forEach((file) => formData.append("screenshots", file));
       await apiMultipart("/bug-report", formData);
@@ -1156,7 +1219,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       if (state.broadcastImageFile) {
         const uploadFile = await compressImageFile(state.broadcastImageFile, { maxSide: 1600, quality: 0.78 });
         const formData = new FormData();
-        formData.append("initData", state.initData);
+        appendAuthFormData(formData);
         formData.append("text", text);
         formData.append("image", uploadFile);
         await apiMultipart("/admin/broadcast-with-image", formData);
@@ -1662,7 +1725,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     if (!user || !item) {
       return `<div class="document-viewer" role="dialog" aria-modal="true"><div class="document-viewer__panel"><button class="icon-button document-viewer__close" data-action="close-documents" aria-label="Закрыть">×</button><div class="empty-state">Документы пользователя недоступны.</div></div></div>`;
     }
-    return `<div class="document-viewer" role="dialog" aria-modal="true" aria-label="Документы пользователя">  <div class="document-viewer__panel">    <div class="document-viewer__header">      <div>        <p class="card__eyebrow">Документы</p>        <h3>${escapeHtml(user.full_name || "Без имени")}</h3>        <span>${escapeHtml(item.title)} ${escapeHtml(state.documentViewerIndex + 1)}/${escapeHtml(items.length)}</span>      </div>      <button class="icon-button document-viewer__close" data-action="close-documents" aria-label="Закрыть">×</button>    </div>    <div class="document-viewer__body">      <button class="document-viewer__nav" data-action="prev-document" ${items.length <= 1 ? "disabled" : ""} type="button">Назад</button>      <img class="document-viewer__image" src="${escapeHtml(item.url)}" alt="${escapeHtml(item.title)}">      <button class="document-viewer__nav" data-action="next-document" ${items.length <= 1 ? "disabled" : ""} type="button">Вперёд</button>    </div>    <div class="document-viewer__footer">      <a class="btn-secondary btn-small" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Открыть отдельно</a>    </div>  </div></div>`;
+    return `<div class="document-viewer" role="dialog" aria-modal="true" aria-label="Документы пользователя">  <div class="document-viewer__panel">    <div class="document-viewer__header">      <div>        <p class="card__eyebrow">Документы</p>        <h3>${escapeHtml(user.full_name || "Без имени")}</h3>        <span>${escapeHtml(item.title)} ${escapeHtml(state.documentViewerIndex + 1)}/${escapeHtml(items.length)}</span>      </div>      <button class="icon-button document-viewer__close" data-action="close-documents" aria-label="Закрыть">×</button>    </div>    <div class="document-viewer__body">      <button class="document-viewer__nav" data-action="prev-document" ${items.length <= 1 ? "disabled" : ""} type="button">Назад</button>      <img class="document-viewer__image" src="${escapeHtml(item.url)}" alt="${escapeHtml(item.title)}">      <button class="document-viewer__nav" data-action="next-document" ${items.length <= 1 ? "disabled" : ""} type="button">Вперёд</button>    </div>  </div></div>`;
   }
 
   renderAdminTab = function renderAdminTabStable() {
@@ -1806,6 +1869,10 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     if (!state.session) {
+      if (state.isAdminStandalone) {
+        renderAdminLogin(state.loadError || "Для входа нужна авторизация через MAX.");
+        return;
+      }
       content.innerHTML = `  <section class="card">    <p class="card__eyebrow">Ошибка загрузки</p>    <h2>Не удалось открыть mini-app</h2>    <p>${escapeHtml(state.loadError || "Сеть mini-app временно недоступна или запрос блокируется webview.")}</p>    <div class="actions"><button class="btn-primary" data-action="retry-session" type="button">Повторить</button></div>  </section>${renderDeveloperFooter()}`;
       return;
     }
@@ -1821,7 +1888,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return;
     }
 
-    content.innerHTML = `${renderTabs()}${renderMaintenanceAdminBanner()}${renderActiveTab()}${renderBugReportButton()}${renderDeveloperFooter()}${renderMembershipModal()}`;
+    content.innerHTML = `${state.isAdminStandalone ? "" : renderTabs()}${renderMaintenanceAdminBanner()}${renderActiveTab()}${state.isAdminStandalone ? "" : renderBugReportButton()}${renderDeveloperFooter()}${renderMembershipModal()}`;
     if (state.membershipModalOpen) {
       const membershipPhoto = content.querySelector(".membership-card__photo img");
       if (membershipPhoto) {
@@ -1854,6 +1921,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     switch (action) {
       case "retry-session":
         void loadSession();
+        return;
+      case "admin-login-max":
+        void startAdminLogin();
         return;
       case "switch-tab":
         state.activeTab = target.dataset.tab;
@@ -2246,14 +2316,35 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     initTheme();
     applyTheme();
     applyStartParam();
-    
-    state.initData = await resolveInitData();
+
     applyStartParam();
     state.apiBaseUrl = String(window.MiniAppConfig?.apiBaseUrl || "").trim();
     document.addEventListener("click", handleContentClick);
     document.addEventListener("input", handleInput);
     document.addEventListener("change", handleChange);
     document.addEventListener("error", handleContentImageError, true);
+
+    if (!isConfigured()) {
+      state.loading = false;
+      render();
+      return;
+    }
+
+    if (await finishAdminLoginIfNeeded()) {
+      return;
+    }
+
+    if (state.isAdminStandalone) {
+      state.activeTab = "admin";
+      if (state.adminToken) {
+        await loadSession();
+        return;
+      }
+      renderAdminLogin();
+      return;
+    }
+
+    state.initData = await resolveInitData();
 
     if (!state.initData) {
       const diagnostics = collectInitDataDiagnostics();
@@ -2263,12 +2354,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         "MAX не передал initData",
         `Откройте mini-app через новую кнопку бота. Bridge: ${diagnostics.hasBridgeWebApp ? "ok" : "нет"}, search: ${diagnostics.searchParams.join(", ") || "пусто"}, hash: ${diagnostics.hashParams.join(", ") || "пусто"}.`,
       );
-      state.loading = false;
-      render();
-      return;
-    }
-
-    if (!isConfigured()) {
       state.loading = false;
       render();
       return;
