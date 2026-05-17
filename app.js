@@ -1416,7 +1416,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderDeveloperFooter() {
-    return `<footer class="developer-footer" aria-label="Информация о разработчике">  <img src="../logo/fbilogo.svg" alt="Логотип ФБИ" loading="lazy">  <span>Разработано ФБИ</span></footer>`;
+    return `<footer class="developer-footer" aria-label="Информация о разработчике">  <img src="../temp/logo/fbilogo.svg" alt="Логотип ФБИ" loading="lazy">  <span>Разработано ФБИ</span></footer>`;
   }
 
   function renderHomeScheduleCard() {
