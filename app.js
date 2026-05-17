@@ -163,6 +163,8 @@
     maintenanceSaving: false,
     maintenanceEnabled: false,
     maintenanceMessage: "",
+    maintenanceDraftEnabled: false,
+    maintenanceDraftMessage: "",
     primaryAdminId: "",
     newAdminId: "",
     confirmRemoveAdminId: "",
@@ -600,6 +602,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       state.session = await apiPost("/session", buildPayload());
       state.maintenanceEnabled = Boolean(state.session.maintenance_enabled);
       state.maintenanceMessage = String(state.session.maintenance_message || "");
+      state.maintenanceDraftEnabled = state.maintenanceEnabled;
+      state.maintenanceDraftMessage = state.maintenanceMessage;
       if (state.session.subscription_check_unavailable) {
         pushAlert("error", "Проверка подписок недоступна", state.session.subscription_check_message || "Откройте приложение ещё раз позже.");
       }
@@ -1080,8 +1084,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     state.maintenanceSaving = true;
     render();
     try {
-      await apiPost("/admin/maintenance", buildPayload({ enabled: state.maintenanceEnabled, message: state.maintenanceMessage }));
-      pushAlert("success", "Режим обновлён", state.maintenanceEnabled ? "Техработы включены." : "Техработы выключены.");
+      await apiPost("/admin/maintenance", buildPayload({ enabled: state.maintenanceDraftEnabled, message: state.maintenanceDraftMessage }));
+      pushAlert("success", "Режим обновлён", state.maintenanceDraftEnabled ? "Техработы включены." : "Техработы выключены.");
       await loadSession();
     } catch (error) {
       pushAlert("error", "Не удалось обновить режим техработ", error.message || "Повторите попытку позже.");
@@ -1352,7 +1356,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderUploadCard({ title, hint, readyLabel, ready, previewUrl, placeholderTitle, placeholderHint, inputAction, buttonText, buttonClass, uploading, alt }) {
-    return `<div class="upload-card">  <label class="upload-placeholder">    ${previewUrl      ? `<img src="${escapeHtml(previewUrl)}" alt="${escapeHtml(alt)}">`      : `        <div class="upload-placeholder__content">          <strong>${escapeHtml(placeholderTitle)}</strong>          <span class="upload-placeholder__hint">${escapeHtml(placeholderHint)}</span>        </div>      `}    <input type="file" accept="image/*" data-action="${escapeHtml(inputAction)}" ${uploading ? "disabled" : ""}>  </label>  <div class="upload-side">    <div class="status-chip ${ready ? "approved" : "not_submitted"}">${escapeHtml(readyLabel)}</div>    <p class="section-note">${escapeHtml(hint)}</p>    <label class="${escapeHtml(buttonClass)}">      ${uploading ? "Загрузка..." : escapeHtml(buttonText)}      <input type="file" accept="image/*" data-action="${escapeHtml(inputAction)}" hidden ${uploading ? "disabled" : ""}>    </label>  </div></div>
+    const safePreviewUrl = String(previewUrl || "").trim();
+    const canPreview = safePreviewUrl && !safePreviewUrl.includes("<") && !safePreviewUrl.includes(">") && /^(https?:|data:image\/|\.\/|\/|storage\/)/i.test(safePreviewUrl);
+    return `<div class="upload-card">  <label class="upload-placeholder">    ${canPreview      ? `<img src="${escapeHtml(safePreviewUrl)}" alt="${escapeHtml(alt)}">`      : `        <div class="upload-placeholder__content">          <strong>${escapeHtml(placeholderTitle)}</strong>          <span class="upload-placeholder__hint">${escapeHtml(placeholderHint)}</span>        </div>      `}    <input type="file" accept="image/*" data-action="${escapeHtml(inputAction)}" ${uploading ? "disabled" : ""}>  </label>  <div class="upload-side">    <div class="status-chip ${ready ? "approved" : "not_submitted"}">${escapeHtml(readyLabel)}</div>    <p class="section-note">${escapeHtml(hint)}</p>    <label class="${escapeHtml(buttonClass)}">      ${uploading ? "Загрузка..." : escapeHtml(buttonText)}      <input type="file" accept="image/*" data-action="${escapeHtml(inputAction)}" hidden ${uploading ? "disabled" : ""}>    </label>  </div></div>
     `;
   }
 
@@ -1433,7 +1439,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderHomeTab(profile, activeApplication, verification, membershipAccess) {
-    return `${renderMembershipSummaryCard(profile, activeApplication, membershipAccess)}${renderHomeScheduleCard()}`;
+    return `${renderMembershipSummaryCard(profile, activeApplication, membershipAccess)}`;
   }
 
   function renderScheduleTab() {
@@ -1559,7 +1565,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const broadcastSection = `<section class="card card--wide">  <p class="card__eyebrow">Рассылка</p>  <h2>Сообщение всем пользователям</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Картинка (необязательно)</span>      <input id="broadcast-image-file" type="file" accept="image/*">      ${state.broadcastImageFile ? `<span class="section-note">Выбран файл: ${escapeHtml(state.broadcastImageFile.name)}</span>` : ""}    </label>    <label class="field field--wide">      <span>Текст</span>      <textarea id="broadcast-text" rows="5" placeholder="Введите текст рассылки">${escapeHtml(state.broadcastText)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="send-broadcast" ${state.sendingBroadcast ? "disabled" : ""}>${state.sendingBroadcast ? "Отправляем..." : "Запустить рассылку"}</button>    </div>  </div></section>`;
 
-    const maintenanceSection = `<section class="card card--wide">  <p class="card__eyebrow">Техработы</p>  <h2>Пауза для пользователей</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Режим техработ</span>      <div class="checkbox-row">        <input id="maintenance-enabled" type="checkbox" ${state.maintenanceEnabled ? "checked" : ""}>        <span>${state.maintenanceEnabled ? "Техработы включены: пользователи увидят экран паузы" : "Техработы выключены: пользователи работают в обычном режиме"}</span>      </div>    </label>    <label class="field field--wide">      <span>Сообщение пользователю</span>      <textarea id="maintenance-message" rows="4" placeholder="Сообщение на время техработ">${escapeHtml(state.maintenanceMessage)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="save-maintenance" ${state.maintenanceSaving ? "disabled" : ""}>${state.maintenanceSaving ? "Сохраняем..." : "Сохранить режим"}</button>    </div>  </div></section>`;
+    const maintenanceSection = `<section class="card card--wide">  <p class="card__eyebrow">Техработы</p>  <h2>Пауза для пользователей</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Режим техработ</span>      <div class="checkbox-row">        <input id="maintenance-enabled" type="checkbox" ${state.maintenanceDraftEnabled ? "checked" : ""}>        <span>${state.maintenanceDraftEnabled ? "Будут включены после сохранения" : "Будут выключены после сохранения"}</span>      </div>      <span class="section-note">Сейчас: ${state.maintenanceEnabled ? "техработы включены" : "техработы выключены"}.</span>    </label>    <label class="field field--wide">      <span>Сообщение пользователю</span>      <textarea id="maintenance-message" rows="4" placeholder="Сообщение на время техработ">${escapeHtml(state.maintenanceDraftMessage)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="save-maintenance" ${state.maintenanceSaving ? "disabled" : ""}>${state.maintenanceSaving ? "Сохраняем..." : "Сохранить режим"}</button>    </div>  </div></section>`;
 
     const queueLimitsSection = `<section class="card card--wide">  <p class="card__eyebrow">Лимиты очереди</p>  <h2>Управление длиной очереди</h2>  <p class="section-note">Можно задать override отдельно для спортзала и бассейна. Если поле пустое, используется обычная квота из БД.</p>  <div class="admin-toolbar">    <label class="field">      <span>Спортзал</span>      <input id="queue-limit-gym" type="number" min="1" step="1" value="${escapeHtml(state.queueLimitGym)}" placeholder="Например, 10">    </label>    <label class="field">      <span>Бассейн</span>      <input id="queue-limit-pool" type="number" min="1" step="1" value="${escapeHtml(state.queueLimitPool)}" placeholder="Например, 20">    </label>    <div class="actions">      <button class="btn-primary" data-action="save-queue-limits" ${state.savingQueueLimits ? "disabled" : ""}>${state.savingQueueLimits ? "Сохраняем..." : "Сохранить лимиты"}</button>    </div>  </div></section>`;
 
@@ -1978,7 +1984,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     if (event.target.id === "maintenance-message") {
-      state.maintenanceMessage = event.target.value;
+      state.maintenanceDraftMessage = event.target.value;
       return;
     }
 
@@ -2043,7 +2049,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     if (event.target.id === "maintenance-enabled") {
-      state.maintenanceEnabled = event.target.checked;
+      state.maintenanceDraftEnabled = event.target.checked;
       render();
       return;
     }
