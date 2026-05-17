@@ -243,6 +243,31 @@
     return "";
   }
 
+  function getStartParam() {
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+    const hashParams = new URLSearchParams(hash);
+    const initData = getWindowInitData() || getQueryInitData();
+    let initDataStartParam = "";
+
+    if (initData) {
+      try {
+        initDataStartParam = new URLSearchParams(initData).get("start_param") || "";
+      } catch (_) {
+        initDataStartParam = "";
+      }
+    }
+
+    return (params.get("tab") || params.get("start_param") || hashParams.get("tab") || hashParams.get("start_param") || initDataStartParam || "").trim();
+  }
+
+  function applyStartParam() {
+    const startParam = getStartParam();
+    if (startParam === "bug-report") {
+      state.activeTab = "bug-report";
+    }
+  }
+
   function getInitData() {
     const webApp = getWebApp();
     if (webApp?.ready) {try {  webApp.ready();} catch (error) {  console.warn("MAX WebApp ready() failed", error);}
@@ -575,6 +600,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       state.session = await apiPost("/session", buildPayload());
       state.maintenanceEnabled = Boolean(state.session.maintenance_enabled);
       state.maintenanceMessage = String(state.session.maintenance_message || "");
+      if (state.session.subscription_check_unavailable) {
+        pushAlert("error", "Проверка подписок недоступна", state.session.subscription_check_message || "Откройте приложение ещё раз позже.");
+      }
       fillProfileForm(state.session.profile);
       if (state.session.is_admin && state.activeTab === "admin") {
         await ensureAdminDataLoaded();
@@ -2025,8 +2053,10 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   async function bootstrap() {
     initTheme();
     applyTheme();
+    applyStartParam();
     
     state.initData = await resolveInitData();
+    applyStartParam();
     state.apiBaseUrl = String(window.MiniAppConfig?.apiBaseUrl || "").trim();
     document.addEventListener("click", handleContentClick);
     document.addEventListener("input", handleInput);
