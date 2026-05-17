@@ -1283,6 +1283,22 @@ button:disabled {
   border: 1px solid var(--line);
 }
 
+.doc-examples {
+  display: grid;
+  gap: 12px;
+}
+
+.doc-tile--example {
+  background: color-mix(in srgb, var(--surface-muted) 78%, transparent);
+  border-style: dashed;
+  box-shadow: none;
+  cursor: default;
+}
+
+.doc-tile--example .doc-tile__visual {
+  opacity: 0.82;
+}
+
 .doc-tile__visual {
   height: 140px;
   border-radius: 14px;

@@ -1319,7 +1319,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderDocumentHelp() {
-    return `<div class="explain-box">  <p class="section-note">Подойдут фотографии документов, где видны ФИО и принадлежность студенту.</p>  <div class="doc-tiles">    ${DOCUMENT_TYPES.map((item) => `      <article class="doc-tile">        <div class="doc-tile__visual">          <img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}">        </div>        <span class="doc-tile__tag">Можно загрузить</span>        <strong>${escapeHtml(item.title)}</strong>      </article>    `).join("")}  </div></div>
+    return `<div class="explain-box doc-examples">  <p class="section-note"><strong>Загрузить нужно один документ.</strong> Ниже примеры подходящих документов, где видны ФИО и принадлежность студенту.</p>  <div class="doc-tiles">    ${DOCUMENT_TYPES.map((item) => `      <article class="doc-tile doc-tile--example">        <div class="doc-tile__visual">          <img src="${escapeHtml(item.image)}" alt="Пример: ${escapeHtml(item.title)}">        </div>        <span class="doc-tile__tag">Пример документа</span>        <strong>${escapeHtml(item.title)}</strong>      </article>    `).join("")}  </div>  <p class="section-note">Выберите один из таких документов или похожий, затем загрузите его через поле ниже.</p></div>
     `;
   }
 
