@@ -118,7 +118,7 @@
 
 .tab-switcher__tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
@@ -1804,6 +1804,7 @@ button:disabled {
   }
 
   .tab-switcher__tabs {
+    grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
     gap: 4px;
   }
 

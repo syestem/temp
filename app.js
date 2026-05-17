@@ -1375,7 +1375,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const deleteSection = `<section class="card card--wide">  <h3>Удаление профиля</h3>  <p class="section-note">Удалятся профиль, загруженные фотографии и все заявки.</p>  ${state.showDeleteConfirm    ? `      <div class="confirm-box confirm-box--warning">        <strong>Удалить профиль и все заявки?</strong>        <div class="actions">          <button class="btn-danger" data-action="confirm-delete-profile" ${state.deletingProfile ? "disabled" : ""}>            ${state.deletingProfile ? "Удаляем..." : "Да, удалить"}          </button>          <button class="btn-secondary" data-action="cancel-delete-profile">Отмена</button>        </div>      </div>    `    : `      <div class="actions">        <button class="btn-danger" data-action="start-delete-profile" ${profile ? "" : "disabled"}>Удалить профиль</button>      </div>    `}</section>`;
 
-    return `${registrationReminder}${userIdCard}${renderProfileStatusSection(profile, status, activeApplication, membershipAccess)}${profileStep}${photoStep}${documentStep}${submitStep}${deleteSection}`;
+    return `${registrationReminder}${userIdCard}${profileStep}${photoStep}${documentStep}${submitStep}${deleteSection}`;
   }
 
   function renderBugReportButton() {
