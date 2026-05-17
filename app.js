@@ -281,7 +281,11 @@
   }
 
   function buildApiHeaders(extra = {}) {
-    return { ...extra };
+    const headers = { ...extra };
+    if (state.apiBaseUrl.includes("ngrok")) {
+      headers["ngrok-skip-browser-warning"] = "true";
+    }
+    return headers;
   }
 
   function buildPayload(extra = {}) {
