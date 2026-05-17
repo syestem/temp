@@ -2134,6 +2134,14 @@ button:disabled {
   border: 1px solid var(--line);
 }
 
+.document-viewer__fallback {
+  height: 100%;
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
 .document-viewer__nav {
   min-width: 94px;
   background: var(--secondary-button-bg);
@@ -2164,6 +2172,11 @@ button:disabled {
     grid-column: 1 / -1;
     grid-row: 1;
     max-height: 520px;
+  }
+
+  .document-viewer__fallback {
+    grid-column: 1 / -1;
+    grid-row: 1;
   }
 
   .document-viewer__nav {

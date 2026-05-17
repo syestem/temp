@@ -1459,7 +1459,17 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   function handleContentImageError(event) {
     const image = event.target;
-    if (!(image instanceof HTMLImageElement) || !image.classList.contains("upload-preview-image")) return;
+    if (!(image instanceof HTMLImageElement)) return;
+    if (image.classList.contains("document-viewer__image")) {
+      const body = image.closest(".document-viewer__body");
+      if (!body) return;
+      image.replaceWith(Object.assign(document.createElement("div"), {
+        className: "document-viewer__fallback empty-state",
+        textContent: "Превью недоступно. Откройте файл отдельно кнопкой ниже.",
+      }));
+      return;
+    }
+    if (!image.classList.contains("upload-preview-image")) return;
     const placeholder = image.closest(".upload-placeholder");
     if (!placeholder) return;
     image.remove();
