@@ -185,6 +185,8 @@
     poolScheduleMinFreeLanes: 0,
     loadingSchedule: false,
     scheduleError: "",
+    profilePhotoPreviewUrl: "",
+    documentPreviewUrl: "",
   };
 
   const content = document.getElementById("content");
@@ -192,6 +194,18 @@
   let membershipTimerId = null;
   let poolIndexPromise = null;
   let adminDataPromise = null;
+
+  function setLocalPreview(kind, file) {
+    const stateKey = kind === "profile" ? "profilePhotoPreviewUrl" : "documentPreviewUrl";
+    if (state[stateKey]) {
+      URL.revokeObjectURL(state[stateKey]);
+    }
+    state[stateKey] = file ? URL.createObjectURL(file) : "";
+  }
+
+  function clearLocalPreview(kind) {
+    setLocalPreview(kind, null);
+  }
 
   function initTheme() {
     document.documentElement.setAttribute("data-theme", state.theme);
@@ -763,6 +777,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
       const result = await apiMultipart("/profile/photo", formData);
       state.session.profile = result.profile;
+      clearLocalPreview("profile");
       pushAlert("success", "Фото загружено", "Фото профиля успешно сохранено.");
     } catch (error) {
       const message = String(error.message || error);
@@ -800,6 +815,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
       const result = await apiMultipart("/profile/document", formData);
       state.session.profile = result.profile;
+      clearLocalPreview("document");
       pushAlert("success", "Документ загружен", "Документ для проверки успешно сохранён.");
     } catch (error) {
       const message = String(error.message || error);
@@ -1474,9 +1490,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const profileStep = `<section class="card card--wide step-card">  <div class="step-card__header">    <div class="step-card__number">1</div>    <div>      <p class="card__eyebrow">Профиль</p>      <h3>${profile ? escapeHtml(profile.full_name) : "Новый профиль"}</h3>      <p class="section-note">ФИО, факультет и группа используются в заявках и электронном абонементе.</p>    </div>  </div>  <div class="status-chip ${escapeHtml(status.className)}">${escapeHtml(status.text)}</div>  ${profile?.verification_comment ? `<p class="section-note">${escapeHtml(profile.verification_comment)}</p>` : ""}  ${profile?.verification_status === "approved" ? `<div class="confirm-box confirm-box--warning"><strong>Внимание: повторная модерация</strong><p class="section-note">Если изменить ФИО, факультет или группу, профиль будет отправлен на повторную модерацию, а уже выданный абонемент будет аннулирован.</p></div>` : ""}  <div class="form-grid">    ${renderField("full_name", "ФИО", "Иванов Иван Иванович")}    ${renderFacultyField()}    ${renderField("group_name", "Группа", "БИСТ-312")}  </div>  <div class="actions">    <button class="btn-primary" data-action="save-profile" ${state.savingProfile ? "disabled" : ""}>      ${state.savingProfile ? "Сохраняем..." : "Сохранить данные"}    </button>  </div></section>`;
 
-    const photoStep = `<section class="card card--wide step-card">  <div class="step-card__header">    <div class="step-card__number">2</div>    <div>      <h3>Фото для электронного абонемента</h3>      <p class="section-note">Загрузите портретное фото лица, как на паспорт или пропуск.</p>    </div>  </div>  ${renderUploadCard({    hint: "Фотография нужна для электронного абонемента.",    readyLabel: profilePhotoReady ? "Фото профиля загружено" : "Фото профиля не загружено",    ready: profilePhotoReady,    previewUrl: profile?.profile_photo_signed_url || "",    placeholderTitle: "Фото для электронного абонемента",    placeholderHint: "Нажмите на область или кнопку справа",    inputAction: "upload-profile-photo",    buttonText: "Загрузить фото",    buttonClass: "btn-secondary",    uploading: state.uploadingPhoto,    alt: "Фото студента",  })}</section>`;
+    const photoStep = `<section class="card card--wide step-card">  <div class="step-card__header">    <div class="step-card__number">2</div>    <div>      <h3>Фото профиля</h3>      <p class="section-note">Загрузите портретное фото лица, как на паспорт или пропуск.</p>    </div>  </div>  ${renderUploadCard({    hint: "Фотография нужна для электронного абонемента.",    readyLabel: profilePhotoReady ? "Фото профиля загружено" : "Фото профиля не загружено",    ready: profilePhotoReady,    previewUrl: state.profilePhotoPreviewUrl || profile?.profile_photo_signed_url || "",    placeholderTitle: "Фото профиля",    placeholderHint: "Нажмите на область или кнопку справа",    inputAction: "upload-profile-photo",    buttonText: "Загрузить фото",    buttonClass: "btn-secondary",    uploading: state.uploadingPhoto,    alt: "Фото студента",  })}</section>`;
 
-    const documentStep = `<section class="card card--wide step-card">  <div class="step-card__header">    <div class="step-card__number">3</div>    <div>      <h3>Документ для проверки</h3>      <p class="section-note">Подойдёт документ, где видны ФИО и принадлежность студенту.</p>    </div>  </div>  <div class="actions">    <button class="btn-secondary btn-wide" data-action="toggle-doc-help">      ${state.showDocumentHelp ? "Скрыть подходящие документы" : "Показать подходящие документы"}    </button>  </div>  ${state.showDocumentHelp ? renderDocumentHelp() : ""}  ${renderUploadCard({    hint: "Документ нужен для подтверждения личности администратором.",    readyLabel: documentReady ? "Документ загружен" : "Документ не загружен",    ready: documentReady,    previewUrl: profile?.identity_document_signed_url || profile?.identity_document_url || "",    placeholderTitle: "Фото документа для проверки",    placeholderHint: "Студенческий, пропуск, зачётка или другой допустимый документ",    inputAction: "upload-document",    buttonText: "Загрузить документ",    buttonClass: "btn-primary",    uploading: state.uploadingDocument,    alt: "Документ для проверки",  })}</section>`;
+    const documentStep = `<section class="card card--wide step-card">  <div class="step-card__header">    <div class="step-card__number">3</div>    <div>      <h3>Документ для проверки</h3>      <p class="section-note">Подойдёт документ, где видны ФИО и принадлежность студенту.</p>    </div>  </div>  <div class="actions">    <button class="btn-secondary btn-wide" data-action="toggle-doc-help">      ${state.showDocumentHelp ? "Скрыть подходящие документы" : "Показать подходящие документы"}    </button>  </div>  ${state.showDocumentHelp ? renderDocumentHelp() : ""}  ${renderUploadCard({    hint: "Документ нужен для подтверждения личности администратором.",    readyLabel: documentReady ? "Документ загружен" : "Документ не загружен",    ready: documentReady,    previewUrl: state.documentPreviewUrl || profile?.identity_document_signed_url || profile?.identity_document_url || "",    placeholderTitle: "Фото документа для проверки",    placeholderHint: "Студенческий, пропуск, зачётка или другой допустимый документ",    inputAction: "upload-document",    buttonText: "Загрузить документ",    buttonClass: "btn-primary",    uploading: state.uploadingDocument,    alt: "Документ для проверки",  })}</section>`;
 
     const submitStep = `<section class="card card--wide step-card">  <div class="step-card__header">    <div class="step-card__number">4</div>    <div>      <h3>Отправка на проверку</h3>      <p class="section-note">Для отправки нужны сохранённый профиль, фото лица и фото документа.</p>    </div>  </div>  <div class="document-box document-box--spaced">    <div class="status-chip ${escapeHtml(status.className)}">${escapeHtml(status.text)}</div>    <div class="actions">      <button        class="btn-secondary btn-wide"        data-action="submit-review"        ${(profilePhotoReady && documentReady && !state.submittingReview && !["pending", "approved"].includes(profile?.verification_status || "")) ? "" : "disabled"}      >        ${state.submittingReview ? "Отправляем..." : "Отправить профиль на проверку"}      </button>    </div>  </div></section>`;
 
@@ -2092,6 +2108,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     if (action === "upload-document") {
       if (!file) return;
+      setLocalPreview("document", file);
+      render();
       void uploadDocument(file);
       event.target.value = "";
       return;
@@ -2099,6 +2117,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     if (action === "upload-profile-photo") {
       if (!file) return;
+      setLocalPreview("profile", file);
+      render();
       void uploadProfilePhoto(file);
       event.target.value = "";
       return;
