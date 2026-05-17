@@ -1,4 +1,4 @@
 window.MiniAppConfig = {
-  apiBaseUrl: "https://max-bot-api-syestem.amvera.io",
-  appBackend: "amvera-api",
+  apiBaseUrl: "http://localhost:8000",
+  appBackend: "local-api",
 };

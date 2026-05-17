@@ -119,6 +119,7 @@
     savingProfile: false,
     uploadingDocument: false,
     uploadingPhoto: false,
+    sendingBugReport: false,
     submittingReview: false,
     previewLoading: false,
     creatingApplication: false,
@@ -127,10 +128,11 @@
     session: null,
     activeTab: "home",
     profileForm: { full_name: "", faculty: "", group_name: "" },
+    bugReportDescription: "",
+    bugReportScreenshots: [],
     fieldErrors: {},
     confirmApplication: null,
     confirmProfileSave: false,
-    debugToday: "",
     showDeleteConfirm: false,
     showDocumentHelp: false,
     membershipModalOpen: false,
@@ -283,7 +285,7 @@
   }
 
   function buildPayload(extra = {}) {
-    return {initData: state.initData,...(state.debugToday ? { debug_today: state.debugToday } : {}),...extra,
+    return {initData: state.initData,...extra,
     };
   }
 
@@ -567,7 +569,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     render();
     try {
       state.session = await apiPost("/session", buildPayload());
-      state.debugToday = state.session.debug_today || "";
       state.maintenanceEnabled = Boolean(state.session.maintenance_enabled);
       state.maintenanceMessage = String(state.session.maintenance_message || "");
       fillProfileForm(state.session.profile);
@@ -732,6 +733,46 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       pushAlert("error", "Профиль не отправлен", error.message || "Повторите попытку позже.");
     } finally {
       state.submittingReview = false;
+      render();
+    }
+  }
+
+  async function sendBugReport() {
+    const description = state.bugReportDescription.trim();
+    if (description.length < 10) {
+      pushAlert("error", "Добавьте описание", "Опишите проблему подробнее: минимум 10 символов.");
+      return;
+    }
+    if (state.bugReportScreenshots.length > 5) {
+      pushAlert("error", "Слишком много файлов", "Можно приложить не больше 5 скриншотов.");
+      return;
+    }
+    for (const file of state.bugReportScreenshots) {
+      if (!file.type.startsWith("image/")) {
+        pushAlert("error", "Неверный файл", "Скриншоты должны быть изображениями.");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        pushAlert("error", "Файл слишком большой", "Размер каждого скриншота не должен превышать 10 МБ.");
+        return;
+      }
+    }
+
+    state.sendingBugReport = true;
+    render();
+    try {
+      const formData = new FormData();
+      formData.append("initData", state.initData);
+      formData.append("description", description);
+      state.bugReportScreenshots.forEach((file) => formData.append("screenshots", file));
+      await apiMultipart("/bug-report", formData);
+      state.bugReportDescription = "";
+      state.bugReportScreenshots = [];
+      pushAlert("success", "Отчёт отправлен", "Администраторы получили описание проблемы и скриншоты.");
+    } catch (error) {
+      pushAlert("error", "Не удалось отправить отчёт", error.message || "Повторите попытку позже.");
+    } finally {
+      state.sendingBugReport = false;
       render();
     }
   }
@@ -1081,13 +1122,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     });
   }
 
-  function renderAdminQueueItem(item) {
-    const user = item.user || {};
-    const status = applicationStatusLabel(item.status);
-    const photoUrl = item.profile_photo_signed_url || item.user?.profile_photo_url || item.profile_photo_url || "";
-    return `<article class="application">  <label class="checkbox-row"><input type="checkbox" data-action="toggle-queue-application" data-application-id="${escapeHtml(item.id)}" ${state.selectedQueueApplicationIds.includes(String(item.id)) ? "checked" : ""}> <span>Выбрать заявку</span></label>  <strong>${escapeHtml(user.full_name || item.full_name || "—")}</strong>  <div class="admin-review-media">${photoUrl ? `<img class="admin-photo-thumb" src="${escapeHtml(photoUrl)}" alt="Фото профиля">` : `<div class="admin-photo-thumb admin-photo-thumb--empty">Нет фото</div>`}</div>  <div class="application__meta">    <span>MAX ID: ${escapeHtml(item.max_user_id || user.max_user_id || "—")}</span>    <span>Факультет: ${escapeHtml(user.faculty || item.faculty || "—")}</span>    <span>Группа: ${escapeHtml(user.group_name || item.group_name || "—")}</span>    <span>Направление: ${item.direction === "gym" ? "Спортзал" : "Бассейн"}</span>    <span>Месяц: ${escapeHtml(monthLabel(item.target_year, item.target_month))}</span>    <span>Очередь: ${escapeHtml(item.queue_position)}</span>    <span>Статус: <span class="status-chip ${escapeHtml(status.className)}">${escapeHtml(status.text)}</span></span>  </div>  <div class="actions">    <button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать абонемент"}</button>  </div></article>`;
-  }
-
   function adminDirectoryRows() {
     if (state.adminDirectoryCategory === "queue") {
       return getFilteredAdminQueue().map((item) => ({
@@ -1153,52 +1187,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         : "";
     return `<section class="card card--wide">  <p class="card__eyebrow">Единая таблица</p>  <h2>Пользователи по категориям</h2>  <div class="admin-toolbar">    <label class="field">      <span>Категория</span>      <select id="admin-directory-category">        <option value="applications" ${state.adminDirectoryCategory === "applications" ? "selected" : ""}>Заявки</option>        <option value="queue" ${state.adminDirectoryCategory === "queue" ? "selected" : ""}>Очередь</option>        <option value="profiles" ${state.adminDirectoryCategory === "profiles" ? "selected" : ""}>Профили</option>      </select>    </label>${filterControls}<div class="section-note">Показано записей: ${rows.length}. Категория: ${categoryLabel}.</div>${actionControls}</div>  ${rows.length === 0 ? `<p>Нет записей</p>` : `<div class="admin-table-wrap"><table class="admin-table">    <thead>      <tr>        <th>Пользователь</th>        <th>MAX ID</th>        <th>Факультет</th>        <th>Группа</th>        <th>Категория</th>        <th>Период</th>        <th>Статус</th>        <th>Действия</th>      </tr>    </thead>    <tbody>${rows.map((row) => `      <tr>        <td data-label="Пользователь"><div class="admin-table-user">${row.selectable ? `<input class="admin-table-check" type="checkbox" data-action="${state.adminDirectoryCategory === "profiles" ? "toggle-review-user" : state.adminDirectoryCategory === "queue" ? "toggle-queue-application" : "noop"}" ${state.adminDirectoryCategory === "profiles" ? `data-user-id="${escapeHtml(row.id)}"` : state.adminDirectoryCategory === "queue" ? `data-application-id="${escapeHtml(row.id)}"` : ""} ${row.selected ? "checked" : ""}>` : ""}${row.photoUrl ? `<img class="admin-table-avatar" src="${escapeHtml(row.photoUrl)}" alt="Фото профиля">` : `<div class="admin-table-avatar admin-table-avatar--empty">Нет фото</div>`}<div><strong>${escapeHtml(row.name)}</strong></div></div></td>        <td data-label="MAX ID">${escapeHtml(row.maxUserId)}</td>        <td data-label="Факультет">${escapeHtml(row.faculty)}</td>        <td data-label="Группа">${escapeHtml(row.groupName)}</td>        <td data-label="Категория">${escapeHtml(row.category)}</td>        <td data-label="Период">${escapeHtml(row.period)}</td>        <td data-label="Статус">${row.statusHtml}</td>        <td data-label="Действия">${row.actionsHtml || "—"}</td>      </tr>`).join("")}</tbody>  </table></div>`}</section>`;
   }
-
-  renderAdminTab = function renderAdminTabStable() {
-    if (!state.session?.is_admin) {
-      return `<section class="card"><p>Доступ запрещён</p></section>`;
-    }
-
-    ensureAdminExportPeriod();
-
-    const exportPeriodOptions = state.adminExportPeriods.length
-      ? state.adminExportPeriods.map((period) => {
-          const value = `${period.year}-${String(period.month).padStart(2, "0")}`;
-          return `<option value="${value}" ${state.adminExportPeriod === value ? "selected" : ""}>${escapeHtml(period.label)}</option>`;
-        }).join("")
-      : `<option value="${escapeHtml(state.adminExportPeriod || "")}">Текущий период</option>`;
-
-    const queueMonthOptions = [`<option value="all">Все месяцы</option>`, ...Array.from(new Map(state.adminQueue.map((entry) => {
-      const value = `${entry.target_year}-${String(entry.target_month).padStart(2, "0")}`;
-      return [value, `<option value="${value}" ${state.adminQueueMonthFilter === value ? "selected" : ""}>${monthLabel(entry.target_year, entry.target_month)}</option>`];
-    })).values())].join("");
-
-    const queueFacultyOptions = [`<option value="all">Все факультеты</option>`, ...Array.from(new Map(state.adminQueue.map((entry) => {
-      const faculty = entry.user?.faculty || entry.faculty || "";
-      return faculty ? [faculty, `<option value="${escapeHtml(faculty)}" ${state.adminQueueFacultyFilter === faculty ? "selected" : ""}>${escapeHtml(faculty)}</option>`] : null;
-    }).filter(Boolean)).values())].join("");
-
-    const filteredQueue = getFilteredAdminQueue();
-    const photoPreview = (url, alt) => url ? `<img class="admin-photo-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : `<div class="admin-photo-thumb admin-photo-thumb--empty">Нет фото</div>`;
-
-    const rejectReasonDialog = state.rejectReasonDialogUserIds.length ? `<div class="card card--flat reject-reason-card">  <p class="card__eyebrow">Причина отклонения</p>  <h3>Выберите или укажите причину</h3>  <div class="actions">    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Фото не прошло проверку">Фото не прошло проверку</button>    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Документ не прошёл проверку">Документ не прошёл проверку</button>    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Некорректная группа">Некорректная группа</button>    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Некорректные данные">Некорректные данные</button>  </div>  <label class="field field--wide">    <span>Своя причина</span>    <textarea id="reject-custom-reason" rows="3" placeholder="Введите свою причину">${escapeHtml(state.rejectCustomReason)}</textarea>  </label>  <div class="actions">    <button class="btn-danger btn-small" data-action="submit-custom-reject-reason" ${!state.rejectCustomReason.trim() || state.verifyingUser ? "disabled" : ""}>Отклонить со своей причиной</button>    <button class="btn-secondary btn-small" data-action="cancel-reject-reason">Отмена</button>  </div></div>` : "";
-
-    const reviewsSection = `<section class="card card--wide">  <p class="card__eyebrow">Проверка профилей</p>  <h2>Профили на проверке</h2>  ${state.pendingReviews.length ? `<div class="actions">    <button class="btn-primary btn-small" data-action="approve-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Одобрить выбранные</button>    <button class="btn-danger btn-small" data-action="reject-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Отклонить выбранные</button>    <button class="btn-secondary btn-small" data-action="delete-selected-users" ${!state.selectedReviewUserIds.length || state.managingAdmin ? "disabled" : ""}>Удалить профили</button>  </div>` : ""}  ${rejectReasonDialog}  ${state.loadingPendingReviews ? `<p>Загрузка...</p>` : state.pendingReviews.length === 0 ? `<p>Нет профилей на проверке</p>` : `<div class="admin-review-list">${state.pendingReviews.map((user) => `    <article class="application">      <label class="checkbox-row"><input type="checkbox" data-action="toggle-review-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.selectedReviewUserIds.includes(user.max_user_id) ? "checked" : ""}> <span>Выбрать профиль</span></label>      <strong>${escapeHtml(user.full_name || "Без имени")}</strong>      <div class="application__meta">        <span>Факультет: ${escapeHtml(user.faculty || "—")}</span>        <span>Группа: ${escapeHtml(user.group_name || "—")}</span>        <span>MAX ID: ${escapeHtml(user.max_user_id || "—")}</span>      </div>      <div class="admin-review-media">        ${photoPreview(user.profile_photo_url, "Фото профиля")}        ${user.profile_photo_url ? `<a class="btn-secondary btn-small" href="${escapeHtml(user.profile_photo_url)}" target="_blank" rel="noreferrer">Открыть фото</a>` : ""}        ${photoPreview(user.identity_document_url, "Документ")}        ${user.identity_document_url ? `<a class="btn-secondary btn-small" href="${escapeHtml(user.identity_document_url)}" target="_blank" rel="noreferrer">Открыть документ</a>` : ""}      </div>    </article>`).join("")}</div>`}</section>`;
-
-    const applicationsSection = `<section class="card card--wide">  <p class="card__eyebrow">Заявки</p>  <h2>Просмотр заявок</h2>  <div class="admin-toolbar">    <label class="field">      <span>Статус</span>      <select id="admin-status-filter">        ${["queued", "approved", "issued", "cancelled"].map((status) => `          <option value="${status}" ${state.adminStatusFilter === status ? "selected" : ""}>${status === "queued" ? "В очереди" : status === "approved" ? "Одобрено" : status === "issued" ? "Выдано" : "Отменено"}</option>        `).join("")}      </select>    </label>    <label class="field">      <span>Период выгрузки</span>      <select id="admin-export-period">${exportPeriodOptions}</select>    </label>    <div class="actions">      <button class="btn-secondary" data-action="refresh-admin-applications">Обновить</button>      <button class="btn-primary" data-action="export-admin-applications-gym">Скачать спортзал</button>      <button class="btn-primary" data-action="export-admin-applications-pool">Скачать бассейн</button>    </div>  </div>  ${state.loadingAdminApplications ? `<p>Загрузка...</p>` : state.adminApplications.length === 0 ? `<p>Нет заявок</p>` : `<div class="application-list">${state.adminApplications.map((app) => `    <article class="application">      <strong>${escapeHtml(app.user?.full_name || "—")}</strong>      <div class="admin-review-media">        ${photoPreview(app.profile_photo_signed_url, "Фото профиля")}      </div>      <div class="application__meta">        <span>MAX ID: ${escapeHtml(app.max_user_id || app.user?.max_user_id || "—")}</span>        <span>Факультет: ${escapeHtml(app.user?.faculty || app.faculty || "—")}</span>        <span>Группа: ${escapeHtml(app.user?.group_name || app.group_name || "—")}</span>        <span>Направление: ${app.direction === "gym" ? "Спортзал" : "Бассейн"}</span>        <span>Месяц: ${escapeHtml(monthLabel(app.target_year, app.target_month))}</span>        <span>Очередь: ${escapeHtml(app.queue_position)}</span>      </div>    </article>`).join("")}</div>`}</section>`;
-
-    const queueSection = `<section class="card card--wide">  <p class="card__eyebrow">Очередь</p>  <h2>Ожидают выдачи абонемента</h2>  ${filteredQueue.length ? `<div class="actions">    <button class="btn-primary btn-small" data-action="issue-selected-memberships" ${!state.selectedQueueApplicationIds.length || state.issuingMembershipId ? "disabled" : ""}>Выдать выбранные</button>  </div>` : ""}  <div class="admin-toolbar">    <label class="field">      <span>Направление</span>      <select id="admin-queue-direction-filter">        <option value="all">Все</option>        <option value="gym" ${state.adminQueueDirectionFilter === "gym" ? "selected" : ""}>Спортзал</option>        <option value="pool" ${state.adminQueueDirectionFilter === "pool" ? "selected" : ""}>Бассейн</option>      </select>    </label>    <label class="field">      <span>Месяц</span>      <select id="admin-queue-month-filter">${queueMonthOptions}</select>    </label>    <label class="field">      <span>Факультет</span>      <select id="admin-queue-faculty-filter">${queueFacultyOptions}</select>    </label>    <label class="field">      <span>Период выгрузки</span>      <select id="admin-export-period">${exportPeriodOptions}</select>    </label>    <div class="actions">      <button class="btn-secondary" data-action="refresh-admin-queue">Обновить очередь</button>      <button class="btn-primary" data-action="export-admin-queue-gym">Скачать спортзал</button>      <button class="btn-primary" data-action="export-admin-queue-pool">Скачать бассейн</button>    </div>  </div>  ${state.loadingAdminQueue ? `<p>Загрузка...</p>` : filteredQueue.length === 0 ? `<p>Очередь пуста</p>` : `<div class="application-list">${filteredQueue.map(renderAdminQueueItem).join("")}</div>`}</section>`;
-
-    const broadcastSection = `<section class="card card--wide">  <p class="card__eyebrow">Рассылка</p>  <h2>Сообщение всем пользователям</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Картинка (необязательно)</span>      <input id="broadcast-image-file" type="file" accept="image/*">      ${state.broadcastImageFile ? `<span class="section-note">Выбран файл: ${escapeHtml(state.broadcastImageFile.name)}</span>` : ""}    </label>    <label class="field field--wide">      <span>Текст</span>      <textarea id="broadcast-text" rows="5" placeholder="Введите текст рассылки">${escapeHtml(state.broadcastText)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="send-broadcast" ${state.sendingBroadcast ? "disabled" : ""}>${state.sendingBroadcast ? "Отправляем..." : "Запустить рассылку"}</button>    </div>  </div></section>`;
-
-    const maintenanceSection = `<section class="card card--wide">  <p class="card__eyebrow">Техработы</p>  <h2>Пауза для пользователей</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Режим техработ</span>      <div class="checkbox-row">        <input id="maintenance-enabled" type="checkbox" ${state.maintenanceEnabled ? "checked" : ""}>        <span>${state.maintenanceEnabled ? "Техработы включены: пользователи увидят экран паузы" : "Техработы выключены: пользователи работают в обычном режиме"}</span>      </div>    </label>    <label class="field field--wide">      <span>Сообщение пользователю</span>      <textarea id="maintenance-message" rows="4" placeholder="Сообщение на время техработ">${escapeHtml(state.maintenanceMessage)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="save-maintenance" ${state.maintenanceSaving ? "disabled" : ""}>${state.maintenanceSaving ? "Сохраняем..." : "Сохранить режим"}</button>    </div>  </div></section>`;
-
-    const queueLimitsSection = `<section class="card card--wide">  <p class="card__eyebrow">Лимиты очереди</p>  <h2>Управление длиной очереди</h2>  <p class="section-note">Можно задать override отдельно для спортзала и бассейна. Если поле пустое, используется обычная квота из БД.</p>  <div class="admin-toolbar">    <label class="field">      <span>Спортзал</span>      <input id="queue-limit-gym" type="number" min="1" step="1" value="${escapeHtml(state.queueLimitGym)}" placeholder="Например, 10">    </label>    <label class="field">      <span>Бассейн</span>      <input id="queue-limit-pool" type="number" min="1" step="1" value="${escapeHtml(state.queueLimitPool)}" placeholder="Например, 20">    </label>    <div class="actions">      <button class="btn-primary" data-action="save-queue-limits" ${state.savingQueueLimits ? "disabled" : ""}>${state.savingQueueLimits ? "Сохраняем..." : "Сохранить лимиты"}</button>    </div>  </div></section>`;
-
-    const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
-
-    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
-  };
 
   async function addAdmin() {
     const targetId = document.getElementById("new-admin-id")?.value.trim();
@@ -1310,36 +1298,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
   }
 
-  async function fillQueue(direction, monthScope) {
-    try {
-      const result = await apiPost("/debug/fill-queue", buildPayload({ direction, month_scope: monthScope }));
-      pushAlert("success", "Тестовая очередь заполнена", `Создано записей: ${result.created}.`);
-      await loadSession();
-    } catch (error) {
-      pushAlert("error", "Не удалось заполнить очередь", error.message || "Повторите попытку позже.");
-    }
-  }
-
-  async function clearQueue() {
-    try {
-      await apiPost("/debug/clear-queue", buildPayload());
-      pushAlert("success", "Тестовая очередь очищена", "Все debug-записи удалены.");
-      await loadSession();
-    } catch (error) {
-      pushAlert("error", "Не удалось очистить очередь", error.message || "Повторите попытку позже.");
-    }
-  }
-
-  async function persistDebugToday(value) {
-    try {
-      const result = await apiPost("/debug/date", buildPayload({ debug_today: value || "" }));
-      state.debugToday = result?.debug_today || "";
-      await loadSession();
-    } catch (error) {
-      pushAlert("error", "Не удалось изменить тестовую дату", error.message || "Повторите попытку позже.");
-    }
-  }
-
   function renderField(name, label, placeholder) {
     const value = state.profileForm[name] || "";
     const error = state.fieldErrors[name];
@@ -1367,7 +1325,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderTabs() {
-    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
+    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"], ["bug-report", "\u041e\u0448\u0438\u0431\u043a\u0430"]];
 
     if (state.session?.is_admin) {
       tabs.push(["admin", "\u0410\u0434\u043c\u0438\u043d"]);
@@ -1478,6 +1436,13 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     return `${renderApplicationAccessCard(profile)}${newApplicationSection}${renderCurrentApplicationCard(activeApplication)}${renderApplicationHistoryCard(applications)}`;
   }
 
+  function renderBugReportTab() {
+    const selectedFiles = state.bugReportScreenshots.length
+      ? `<div class="bug-report-files">${state.bugReportScreenshots.map((file, index) => `<span>${escapeHtml(index + 1)}. ${escapeHtml(file.name)} (${Math.ceil(file.size / 1024)} КБ)</span>`).join("")}</div>`
+      : `<p class="section-note">Скриншоты необязательны, но помогут быстрее разобраться.</p>`;
+    return `<section class="card card--wide bug-report-card">  <p class="card__eyebrow">Обратная связь</p>  <h2>Сообщить об ошибке</h2>  <p>Опишите, что пошло не так: где возникла проблема, что нажимали и какой результат ожидали.</p>  <div class="form-grid">    <label class="field field--wide">      <span>Описание проблемы</span>      <textarea id="bug-report-description" rows="7" placeholder="Например: не открывается абонемент, после нажатия кнопки вижу ошибку...">${escapeHtml(state.bugReportDescription)}</textarea>    </label>    <label class="field field--wide bug-report-upload">      <span>Скриншоты</span>      <input id="bug-report-screenshots" type="file" accept="image/*" multiple ${state.sendingBugReport ? "disabled" : ""}>      ${selectedFiles}    </label>  </div>  <div class="actions">    <button class="btn-primary" data-action="send-bug-report" ${state.sendingBugReport ? "disabled" : ""}>${state.sendingBugReport ? "Отправляем..." : "Отправить отчёт"}</button>  </div></section>`;
+  }
+
   function renderMembershipModal() {
     if (!state.membershipModalOpen) return "";
     const profile = state.session?.profile;
@@ -1505,82 +1470,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     return `<div class="confirm-box">  <strong>Подтвердите заявку</strong>  <div class="selected-direction">    <span>Выбранное направление</span>    <strong>${escapeHtml(directionLabel)}</strong>  </div>  <div class="preview-details">    <div class="preview-detail">      <span>Предварительный месяц</span>      <strong>${escapeHtml(monthLabel(preview.assigned_year, preview.assigned_month))}</strong>    </div>    <div class="preview-detail">      <span>Место в очереди</span>      <strong>${escapeHtml(preview.queue_position)}</strong>    </div>    <div class="preview-detail">      <span>Лимит по факультету</span>      <strong>${escapeHtml(preview.quota_limit)}</strong>    </div>  </div>  <div class="actions">    <button class="btn-primary" data-action="confirm-application" ${state.creatingApplication ? "disabled" : ""}>      ${state.creatingApplication ? "Создаём..." : "Подтвердить заявку"}    </button>    <button class="btn-secondary" data-action="clear-application-confirm">Отмена</button>  </div></div>
     `;
   }
-
-  function buildTestDate(day) {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-
-  function buildNextMonth26() {
-    const today = new Date();
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 26);
-    return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}-26`;
-  }
-
-  function buildCurrentMonthDay(day) {
-    const today = new Date();
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-
-  function buildNextMonthDay(day) {
-    const today = new Date();
-    const target = new Date(today.getFullYear(), today.getMonth() + 1, day);
-    return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
-
-  function renderDebugCard() {
-    if (!state.session?.debug_available) return "";
-    return `<section class="card card--wide">  <p class="card__eyebrow">Debug</p>  <h3>Проверка очереди</h3>  <div class="debug-grid">    <button class="btn-secondary" data-action="set-debug-date" data-date="${new Date().toISOString().slice(0, 10)}">Сегодня</button>    <button class="btn-secondary" data-action="set-debug-date" data-date="${buildTestDate(26)}">Сделать сегодня 26-е</button>    <button class="btn-secondary" data-action="set-debug-date" data-date="${buildNextMonth26()}">Сделать 26-е следующего месяца</button>    <button class="btn-secondary" data-action="set-debug-date" data-date="${buildCurrentMonthDay(27)}">Сегодня 27</button>    <button class="btn-secondary" data-action="set-debug-date" data-date="${buildNextMonthDay(27)}">Сегодня 27 следующего месяца</button>    <button class="btn-secondary" data-action="set-debug-date" data-date="${buildCurrentMonthDay(1)}">Сегодня 1</button>    <button class="btn-secondary" data-action="set-debug-date" data-date="${buildNextMonthDay(1)}">Сегодня 1 следующего месяца</button>    <button class="btn-secondary" data-action="clear-debug-date">Сбросить тестовую дату</button>    <button class="btn-warning" data-action="fill-queue" data-direction="gym" data-scope="first">Заполнить спортзал на ближайший месяц</button>    <button class="btn-warning" data-action="fill-queue" data-direction="gym" data-scope="second">Заполнить спортзал на следующий месяц</button>    <button class="btn-warning" data-action="fill-queue" data-direction="pool" data-scope="first">Заполнить бассейн на ближайший месяц</button>    <button class="btn-warning" data-action="fill-queue" data-direction="pool" data-scope="second">Заполнить бассейн на следующий месяц</button>    <button class="btn-danger" data-action="clear-debug-queue">Очистить test-очередь</button>  </div>  <p class="section-note">Текущая эффективная дата: ${escapeHtml(state.session.effective_today)}</p></section>
-    `;
-  }
-
-  renderAdminTab = function renderAdminTabExtended() {
-    if (!state.session?.is_admin) {
-      return `<section class="card"><p>Доступ запрещён</p></section>`;
-    }
-
-    ensureAdminExportPeriod();
-
-    const exportPeriodOptions = state.adminExportPeriods.length
-      ? state.adminExportPeriods.map((period) => {
-          const value = `${period.year}-${String(period.month).padStart(2, "0")}`;
-          return `<option value="${value}" ${state.adminExportPeriod === value ? "selected" : ""}>${escapeHtml(period.label)}</option>`;
-        }).join("")
-      : `<option value="${escapeHtml(state.adminExportPeriod || "")}">Текущий период</option>`;
-
-    const queueMonthOptions = [`<option value="all">Все месяцы</option>`, ...Array.from(new Map(state.adminQueue.map((item) => {
-      const value = `${item.target_year}-${String(item.target_month).padStart(2, "0")}`;
-      return [value, `<option value="${value}" ${state.adminQueueMonthFilter === value ? "selected" : ""}>${monthLabel(item.target_year, item.target_month)}</option>`];
-    })).values())].join("");
-
-    const queueFacultyOptions = [`<option value="all">Все факультеты</option>`, ...Array.from(new Map(state.adminQueue.map((item) => {
-      const faculty = item.user?.faculty || item.faculty || "";
-      return faculty ? [faculty, `<option value="${escapeHtml(faculty)}" ${state.adminQueueFacultyFilter === faculty ? "selected" : ""}>${escapeHtml(faculty)}</option>`] : null;
-    }).filter(Boolean)).values())].join("");
-
-    const filteredQueue = getFilteredAdminQueue();
-
-
-    const photoPreview = (url, alt) => url ? `<img class="admin-photo-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(alt)}">` : `<div class="admin-photo-thumb admin-photo-thumb--empty">Нет фото</div>`;
-
-    const rejectReasonDialog = state.rejectReasonDialogUserIds.length ? `<div class="card card--flat">  <p class="card__eyebrow">Причина отклонения</p>  <div class="actions">    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Фото не прошло проверку">Фото не прошло проверку</button>    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Документ не прошёл проверку">Документ не прошёл проверку</button>    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Некорректная группа">Некорректная группа</button>    <button class="btn-secondary btn-small" data-action="reject-reason" data-reason="Некорректные данные">Некорректные данные</button>  </div>  <label class="field field--wide">    <span>Своя причина</span>    <textarea id="reject-custom-reason" rows="3" placeholder="Введите свою причину">${escapeHtml(state.rejectCustomReason)}</textarea>  </label>  <div class="actions">    <button class="btn-danger btn-small" data-action="submit-custom-reject-reason" ${!state.rejectCustomReason.trim() || state.verifyingUser ? "disabled" : ""}>Отклонить со своей причиной</button>    <button class="btn-secondary btn-small" data-action="cancel-reject-reason">Отмена</button>  </div></div>` : "";
-
-    const reviewsSection = `<section class="card card--wide">  <p class="card__eyebrow">Проверка профилей</p>  <h2>Профили на проверке</h2>  ${state.pendingReviews.length ? `<div class="actions">    <button class="btn-primary btn-small" data-action="approve-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Одобрить выбранные</button>    <button class="btn-danger btn-small" data-action="reject-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Отклонить выбранные</button>    <button class="btn-secondary btn-small" data-action="delete-selected-users" ${!state.selectedReviewUserIds.length || state.managingAdmin ? "disabled" : ""}>Удалить профили</button>  </div>` : ""}  ${rejectReasonDialog}  ${state.loadingPendingReviews ? `<p>Загрузка...</p>` : state.pendingReviews.length === 0 ? `<p>Нет профилей на проверке</p>` : `<div class="admin-review-list">${state.pendingReviews.map((user) => `    <article class="application">      <label class="checkbox-row"><input type="checkbox" data-action="toggle-review-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.selectedReviewUserIds.includes(user.max_user_id) ? "checked" : ""}> <span>Выбрать профиль</span></label>      <strong>${escapeHtml(user.full_name || "Без имени")}</strong>      <div class="application__meta">        <span>Факультет: ${escapeHtml(user.faculty || "—")}</span>        <span>Группа: ${escapeHtml(user.group_name || "—")}</span>        <span>MAX ID: ${escapeHtml(user.max_user_id || "—")}</span>      </div>      <div class="admin-review-media">        ${photoPreview(user.profile_photo_url, "Фото профиля")}        ${user.profile_photo_url ? `<a class="btn-secondary btn-small" href="${escapeHtml(user.profile_photo_url)}" target="_blank" rel="noreferrer">Открыть фото</a>` : ""}        ${photoPreview(user.identity_document_url, "Документ")}        ${user.identity_document_url ? `<a class="btn-secondary btn-small" href="${escapeHtml(user.identity_document_url)}" target="_blank" rel="noreferrer">Открыть документ</a>` : ""}      </div>      <div class="application__footer">        <button class="btn-primary btn-small" data-action="approve-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Одобрить</button>        <button class="btn-danger btn-small" data-action="reject-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Отклонить</button>      </div>    </article>`).join("")}</div>`}</section>`;
-
-    const applicationsSection = `<section class="card card--wide">  <p class="card__eyebrow">Заявки</p>  <h2>Просмотр заявок</h2>  <div class="admin-toolbar">    <label class="field">      <span>Статус</span>      <select id="admin-status-filter">        ${["queued", "approved", "issued", "cancelled"].map((status) => `          <option value="${status}" ${state.adminStatusFilter === status ? "selected" : ""}>${status === "queued" ? "В очереди" : status === "approved" ? "Одобрено" : status === "issued" ? "Выдано" : "Отменено"}</option>        `).join("")}      </select>    </label>    <label class="field">      <span>Период выгрузки</span>      <select id="admin-export-period">${exportPeriodOptions}</select>    </label>    <div class="actions">      <button class="btn-secondary" data-action="refresh-admin-applications">Обновить</button>      <button class="btn-primary" data-action="export-admin-applications-gym">Скачать спортзал</button>      <button class="btn-primary" data-action="export-admin-applications-pool">Скачать бассейн</button>    </div>  </div>  ${state.loadingAdminApplications ? `<p>Загрузка...</p>` : state.adminApplications.length === 0 ? `<p>Нет заявок</p>` : `<div class="application-list">${state.adminApplications.map((app) => `    <article class="application">      <strong>${escapeHtml(app.user?.full_name || "—")}</strong>      <div class="admin-review-media">        ${photoPreview(app.profile_photo_signed_url, "Фото профиля")}      </div>      <div class="application__meta">        <span>MAX ID: ${escapeHtml(app.max_user_id || app.user?.max_user_id || "—")}</span>        <span>Факультет: ${escapeHtml(app.user?.faculty || app.faculty || "—")}</span>        <span>Группа: ${escapeHtml(app.user?.group_name || app.group_name || "—")}</span>        <span>Направление: ${app.direction === "gym" ? "Спортзал" : "Бассейн"}</span>        <span>Месяц: ${escapeHtml(monthLabel(app.target_year, app.target_month))}</span>        <span>Очередь: ${escapeHtml(app.queue_position)}</span>        <span>Статус: <span class="status-chip ${escapeHtml(applicationStatusLabel(app.status).className)}">${escapeHtml(applicationStatusLabel(app.status).text)}</span></span>      </div>      <div class="application__footer">        <button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${(state.issuingMembershipId && String(state.issuingMembershipId) !== String(item.id)) ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать абонемент"}</button>      </div>    </article>`).join("")}</div>`}</section>`;
-
-    const queueSection = `<section class="card card--wide">  <p class="card__eyebrow">Очередь</p>  <h2>Ожидают выдачи абонемента</h2>  ${filteredQueue.length ? `<div class="actions">    <button class="btn-primary btn-small" data-action="issue-selected-memberships" ${!state.selectedQueueApplicationIds.length || state.issuingMembershipId ? "disabled" : ""}>Выдать выбранные</button>  </div>` : ""}  <div class="admin-toolbar">    <label class="field">      <span>Направление</span>      <select id="admin-queue-direction-filter">        <option value="all">Все</option>        <option value="gym" ${state.adminQueueDirectionFilter === "gym" ? "selected" : ""}>Спортзал</option>        <option value="pool" ${state.adminQueueDirectionFilter === "pool" ? "selected" : ""}>Бассейн</option>      </select>    </label>    <label class="field">      <span>Месяц</span>      <select id="admin-queue-month-filter">${queueMonthOptions}</select>    </label>    <label class="field">      <span>Факультет</span>      <select id="admin-queue-faculty-filter">${queueFacultyOptions}</select>    </label>    <label class="field">      <span>Период выгрузки</span>      <select id="admin-export-period">${exportPeriodOptions}</select>    </label>    <div class="actions">      <button class="btn-secondary" data-action="refresh-admin-queue">Обновить очередь</button>      <button class="btn-primary" data-action="export-admin-queue-gym">Скачать спортзал</button>      <button class="btn-primary" data-action="export-admin-queue-pool">Скачать бассейн</button>    </div>  </div>  ${state.loadingAdminQueue ? `<p>Загрузка...</p>` : filteredQueue.length === 0 ? `<p>Очередь пуста</p>` : `<div class="application-list">${filteredQueue.map((item) => `    <article class="application">      <label class="checkbox-row"><input type="checkbox" data-action="toggle-queue-application" data-application-id="${escapeHtml(item.id)}" ${state.selectedQueueApplicationIds.includes(String(item.id)) ? "checked" : ""}> <span>Выбрать заявку</span></label>      <strong>${escapeHtml(item.user?.full_name || item.full_name || "—")}</strong>      <div class="admin-review-media">        ${photoPreview(item.profile_photo_signed_url, "Фото профиля")}      </div>      <div class="application__meta">        <span>MAX ID: ${escapeHtml(item.max_user_id || item.user?.max_user_id || "—")}</span>        <span>Факультет: ${escapeHtml(item.user?.faculty || item.faculty || "—")}</span>        <span>Группа: ${escapeHtml(item.user?.group_name || item.group_name || "—")}</span>        <span>Направление: ${item.direction === "gym" ? "Спортзал" : "Бассейн"}</span>        <span>Месяц: ${escapeHtml(monthLabel(item.target_year, item.target_month))}</span>        <span>Место в очереди: ${escapeHtml(item.queue_position)}</span>        <span>Статус: <span class="status-chip ${escapeHtml(applicationStatusLabel(item.status).className)}">${escapeHtml(applicationStatusLabel(item.status).text)}</span></span>      </div>      <div class="application__footer">        <button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId === item.id ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать абонемент"}</button>      </div>    </article>`).join("")}</div>`}</section>`;
-
-    const broadcastSection = `<section class="card card--wide">  <p class="card__eyebrow">Рассылка</p>  <h2>Сообщение всем пользователям</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Картинка (необязательно)</span>      <input id="broadcast-image-file" type="file" accept="image/*">      ${state.broadcastImageFile ? `<span class="section-note">Выбран файл: ${escapeHtml(state.broadcastImageFile.name)}</span>` : ""}    </label>    <label class="field field--wide">      <span>Текст</span>      <textarea id="broadcast-text" rows="5" placeholder="Введите текст рассылки">${escapeHtml(state.broadcastText)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="send-broadcast" ${state.sendingBroadcast ? "disabled" : ""}>${state.sendingBroadcast ? "Отправляем..." : "Запустить рассылку"}</button>    </div>  </div></section>`;
-
-    const maintenanceSection = `<section class="card card--wide">  <p class="card__eyebrow">Техработы</p>  <h2>Пауза для пользователей</h2>  <div class="admin-toolbar">    <label class="field field--wide">      <span>Режим техработ</span>      <div class="checkbox-row">        <input id="maintenance-enabled" type="checkbox" ${state.maintenanceEnabled ? "checked" : ""}>        <span>${state.maintenanceEnabled ? "Техработы включены: пользователи увидят экран паузы" : "Техработы выключены: пользователи работают в обычном режиме"}</span>      </div>    </label>    <label class="field field--wide">      <span>Сообщение пользователю</span>      <textarea id="maintenance-message" rows="4" placeholder="Сообщение на время техработ">${escapeHtml(state.maintenanceMessage)}</textarea>    </label>    <div class="actions">      <button class="btn-primary" data-action="save-maintenance" ${state.maintenanceSaving ? "disabled" : ""}>${state.maintenanceSaving ? "Сохраняем..." : "Сохранить режим"}</button>    </div>  </div></section>`;
-
-    const queueLimitsSection = `<section class="card card--wide">  <p class="card__eyebrow">Лимиты очереди</p>  <h2>Управление длиной очереди</h2>  <p class="section-note">Можно задать override отдельно для спортзала и бассейна. Если поле пустое, используется обычная квота из БД.</p>  <div class="admin-toolbar">    <label class="field">      <span>Спортзал</span>      <input id="queue-limit-gym" type="number" min="1" step="1" value="${escapeHtml(state.queueLimitGym)}" placeholder="Например, 10">    </label>    <label class="field">      <span>Бассейн</span>      <input id="queue-limit-pool" type="number" min="1" step="1" value="${escapeHtml(state.queueLimitPool)}" placeholder="Например, 20">    </label>    <div class="actions">      <button class="btn-primary" data-action="save-queue-limits" ${state.savingQueueLimits ? "disabled" : ""}>${state.savingQueueLimits ? "Сохраняем..." : "Сохранить лимиты"}</button>    </div>  </div></section>`;
-
-    const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
-
-    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
-  };
 
   function renderAdminQueueItem(item) {
     const user = item.user || {};
@@ -1713,6 +1602,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     if (state.activeTab === "admin") {
       return renderAdminTab();
     }
+    if (state.activeTab === "bug-report") {
+      return renderBugReportTab();
+    }
     return renderProfileTab();
   }
 
@@ -1828,6 +1720,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       case "submit-review":
         void submitReview();
         return;
+      case "send-bug-report":
+        void sendBugReport();
+        return;
       case "start-delete-profile":
         state.showDeleteConfirm = true;
         render();
@@ -1865,18 +1760,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         return;
       case "toggle-theme":
         toggleTheme();
-        return;
-      case "set-debug-date":
-        void persistDebugToday(target.dataset.date || "");
-        return;
-      case "clear-debug-date":
-        void persistDebugToday("");
-        return;
-      case "fill-queue":
-        void fillQueue(target.dataset.direction, target.dataset.scope);
-        return;
-      case "clear-debug-queue":
-        void clearQueue();
         return;
       case "add-admin":
         void addAdmin();
@@ -2040,6 +1923,11 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return;
     }
 
+    if (event.target.id === "bug-report-description") {
+      state.bugReportDescription = event.target.value;
+      return;
+    }
+
     if (event.target.id === "broadcast-image-url") {
       return;
     }
@@ -2116,6 +2004,12 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     if (event.target.id === "broadcast-image-file") {
       state.broadcastImageFile = event.target.files?.[0] || null;
+      render();
+      return;
+    }
+
+    if (event.target.id === "bug-report-screenshots") {
+      state.bugReportScreenshots = Array.from(event.target.files || []).slice(0, 5);
       render();
     }
   }

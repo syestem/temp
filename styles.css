@@ -118,7 +118,7 @@
 
 .tab-switcher__tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 6px;
   min-width: 0;
   flex: 1 1 auto;
@@ -852,6 +852,25 @@ button:disabled {
   margin-top: 8px;
   font-size: 14px;
   color: var(--muted);
+}
+
+.bug-report-upload input[type="file"] {
+  padding: 10px;
+}
+
+.bug-report-files {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-muted);
+  color: var(--muted-strong);
+  font-size: 14px;
+}
+
+.bug-report-card .actions {
+  margin-top: 16px;
 }
 
 .document-box,
