@@ -432,6 +432,61 @@
     );
   }
 
+  function compressedFileName(file) {
+    const baseName = String(file?.name || "image").replace(/\.[^.]+$/, "") || "image";
+    return `${baseName}.jpg`;
+  }
+
+  async function compressImageFile(file, { maxSide = 1600, quality = 0.78 } = {}) {
+    if (!file?.type?.startsWith("image/")) return file;
+    if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
+    if (file.size <= 900 * 1024) return file;
+
+    let bitmap = null;
+    let objectUrl = "";
+    try {
+      if (window.createImageBitmap) {
+        bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      } else {
+        objectUrl = URL.createObjectURL(file);
+        bitmap = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = objectUrl;
+        });
+      }
+
+      const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+      const width = Math.max(1, Math.round(bitmap.width * scale));
+      const height = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) return file;
+      context.drawImage(bitmap, 0, 0, width, height);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+      if (!blob || blob.size >= file.size) return file;
+      return new File([blob], compressedFileName(file), { type: "image/jpeg", lastModified: Date.now() });
+    } catch (error) {
+      console.warn("Image compression failed", error);
+      return file;
+    } finally {
+      if (bitmap?.close) bitmap.close();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    }
+  }
+
+  async function compressImageFiles(files, options) {
+    const result = [];
+    for (const file of files) {
+      result.push(await compressImageFile(file, options));
+    }
+    return result;
+  }
+
   function getProfileSetupItems(profile) {
     return [{  label: "Основные данные сохранены",  done: Boolean(profile?.full_name && profile?.faculty && profile?.group_name),},{  label: "Фото для абонемента загружено",  done: hasProfilePhoto(),},{  label: "Документ для проверки загружен",  done: hasIdentityDocument(),},{  label: "Профиль подтверждён",  done: profile?.verification_status === "approved",},
     ];
@@ -700,9 +755,11 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         throw new Error("Нужно загрузить файл изображения.");
       }
 
+      const uploadFile = await compressImageFile(file, { maxSide: 1400, quality: 0.78 });
+
       const formData = new FormData();
       formData.append("initData", state.initData);
-      formData.append("photo", file);
+      formData.append("photo", uploadFile);
 
       const result = await apiMultipart("/profile/photo", formData);
       state.session.profile = result.profile;
@@ -735,9 +792,11 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         throw new Error("Нужно загрузить файл изображения.");
       }
 
+      const uploadFile = await compressImageFile(file, { maxSide: 1800, quality: 0.82 });
+
       const formData = new FormData();
       formData.append("initData", state.initData);
-      formData.append("document", file);
+      formData.append("document", uploadFile);
 
       const result = await apiMultipart("/profile/document", formData);
       state.session.profile = result.profile;
@@ -797,10 +856,11 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     state.sendingBugReport = true;
     render();
     try {
+      const screenshots = await compressImageFiles(state.bugReportScreenshots, { maxSide: 1600, quality: 0.76 });
       const formData = new FormData();
       formData.append("initData", state.initData);
       formData.append("description", description);
-      state.bugReportScreenshots.forEach((file) => formData.append("screenshots", file));
+      screenshots.forEach((file) => formData.append("screenshots", file));
       await apiMultipart("/bug-report", formData);
       state.bugReportDescription = "";
       state.bugReportScreenshots = [];
@@ -1060,10 +1120,11 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     render();
     try {
       if (state.broadcastImageFile) {
+        const uploadFile = await compressImageFile(state.broadcastImageFile, { maxSide: 1600, quality: 0.78 });
         const formData = new FormData();
         formData.append("initData", state.initData);
         formData.append("text", text);
-        formData.append("image", state.broadcastImageFile);
+        formData.append("image", uploadFile);
         await apiMultipart("/admin/broadcast-with-image", formData);
       } else {
         await apiPost("/admin/broadcast", buildPayload({ text, image_url: null }));
