@@ -777,7 +777,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
       const result = await apiMultipart("/profile/photo", formData);
       state.session.profile = result.profile;
-      clearLocalPreview("profile");
       pushAlert("success", "Фото загружено", "Фото профиля успешно сохранено.");
     } catch (error) {
       const message = String(error.message || error);
@@ -815,7 +814,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
       const result = await apiMultipart("/profile/document", formData);
       state.session.profile = result.profile;
-      clearLocalPreview("document");
       pushAlert("success", "Документ загружен", "Документ для проверки успешно сохранён.");
     } catch (error) {
       const message = String(error.message || error);
