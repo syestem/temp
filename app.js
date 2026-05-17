@@ -146,6 +146,8 @@
     pendingReviews: [],
     selectedReviewUserIds: [],
     selectedQueueApplicationIds: [],
+    documentViewerUserId: "",
+    documentViewerIndex: 0,
     rejectReasonDialogUserIds: [],
     rejectCustomReason: "",
     adminExportPeriods: [],
@@ -1255,7 +1257,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return state.pendingReviews.map((user) => ({
         key: `profile-${user.max_user_id}`,
         id: user.max_user_id,
-        photoUrl: user.profile_photo_url || "",
+        photoUrl: "",
         name: user.full_name || "Без имени",
         maxUserId: user.max_user_id || "—",
         faculty: user.faculty || "—",
@@ -1265,7 +1267,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         statusHtml: `<span class="status-chip ${escapeHtml(verificationLabel(user.verification_status || "pending").className)}">${escapeHtml(verificationLabel(user.verification_status || "pending").text)}</span>`,
         selectable: true,
         selected: state.selectedReviewUserIds.includes(user.max_user_id),
-        actionsHtml: `<div class="admin-table-actions"><button class="btn-primary btn-small" data-action="approve-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Одобрить</button><button class="btn-danger btn-small" data-action="reject-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Отклонить</button><button class="btn-secondary btn-small" data-action="delete-selected-users" data-single-user-id="${escapeHtml(user.max_user_id)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button></div>`,
+        actionsHtml: `<div class="admin-table-actions"><button class="btn-secondary btn-small" data-action="open-documents" data-user-id="${escapeHtml(user.max_user_id)}">Документы</button><button class="btn-primary btn-small" data-action="approve-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Одобрить</button><button class="btn-danger btn-small" data-action="reject-user" data-user-id="${escapeHtml(user.max_user_id)}" ${state.verifyingUser ? "disabled" : ""}>Отклонить</button><button class="btn-secondary btn-small" data-action="delete-selected-users" data-single-user-id="${escapeHtml(user.max_user_id)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button></div>`,
       }));
     }
     return state.adminApplications.map((app) => ({
@@ -1615,6 +1617,26 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     return `<article class="application">  <label class="checkbox-row"><input type="checkbox" data-action="toggle-queue-application" data-application-id="${escapeHtml(item.id)}" ${state.selectedQueueApplicationIds.includes(String(item.id)) ? "checked" : ""}> <span>Выбрать заявку</span></label>  <strong>${escapeHtml(user.full_name || item.full_name || "—")}</strong>  <div class="application__meta">    <span>MAX ID: ${escapeHtml(item.max_user_id || user.max_user_id || "—")}</span>    <span>Факультет: ${escapeHtml(user.faculty || item.faculty || "—")}</span>    <span>Группа: ${escapeHtml(user.group_name || item.group_name || "—")}</span>    <span>Направление: ${item.direction === "gym" ? "Спортзал" : "Бассейн"}</span>    <span>Месяц: ${escapeHtml(monthLabel(item.target_year, item.target_month))}</span>    <span>Очередь: ${escapeHtml(item.queue_position)}</span>    <span>Статус: <span class="status-chip ${escapeHtml(status.className)}">${escapeHtml(status.text)}</span></span>  </div>  <div class="actions">    <button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать абонемент"}</button>  </div></article>`;
   }
 
+  function getDocumentViewerItems() {
+    const user = state.pendingReviews.find((item) => String(item.max_user_id) === String(state.documentViewerUserId));
+    if (!user) return { user: null, items: [] };
+    const items = [
+      { title: "Фото профиля", url: user.profile_photo_url || "" },
+      { title: "Документ", url: user.identity_document_url || "" },
+    ].filter((item) => item.url);
+    return { user, items };
+  }
+
+  function renderDocumentViewer() {
+    if (!state.documentViewerUserId) return "";
+    const { user, items } = getDocumentViewerItems();
+    const item = items[state.documentViewerIndex] || items[0];
+    if (!user || !item) {
+      return `<div class="document-viewer" role="dialog" aria-modal="true"><div class="document-viewer__panel"><button class="icon-button document-viewer__close" data-action="close-documents" aria-label="Закрыть">×</button><div class="empty-state">Документы пользователя недоступны.</div></div></div>`;
+    }
+    return `<div class="document-viewer" role="dialog" aria-modal="true" aria-label="Документы пользователя">  <div class="document-viewer__panel">    <div class="document-viewer__header">      <div>        <p class="card__eyebrow">Документы</p>        <h3>${escapeHtml(user.full_name || "Без имени")}</h3>        <span>${escapeHtml(item.title)} ${escapeHtml(state.documentViewerIndex + 1)}/${escapeHtml(items.length)}</span>      </div>      <button class="icon-button document-viewer__close" data-action="close-documents" aria-label="Закрыть">×</button>    </div>    <div class="document-viewer__body">      <button class="document-viewer__nav" data-action="prev-document" ${items.length <= 1 ? "disabled" : ""} type="button">Назад</button>      <img class="document-viewer__image" src="${escapeHtml(item.url)}" alt="${escapeHtml(item.title)}">      <button class="document-viewer__nav" data-action="next-document" ${items.length <= 1 ? "disabled" : ""} type="button">Вперёд</button>    </div>    <div class="document-viewer__footer">      <a class="btn-secondary btn-small" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">Открыть отдельно</a>    </div>  </div></div>`;
+  }
+
   renderAdminTab = function renderAdminTabStable() {
     if (!state.session?.is_admin) {
       return `<section class="card"><p>Доступ запрещён</p></section>`;
@@ -1658,7 +1680,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
 
-    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}`;
+    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}${renderDocumentViewer()}`;
   };
 
   function getRenderContext() {
@@ -1960,6 +1982,33 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
         state.rejectCustomReason = "";
         render();
         return;
+      case "open-documents": {
+        state.documentViewerUserId = target.dataset.userId || "";
+        state.documentViewerIndex = 0;
+        render();
+        return;
+      }
+      case "close-documents":
+        state.documentViewerUserId = "";
+        state.documentViewerIndex = 0;
+        render();
+        return;
+      case "prev-document": {
+        const { items } = getDocumentViewerItems();
+        if (items.length) {
+          state.documentViewerIndex = (state.documentViewerIndex - 1 + items.length) % items.length;
+          render();
+        }
+        return;
+      }
+      case "next-document": {
+        const { items } = getDocumentViewerItems();
+        if (items.length) {
+          state.documentViewerIndex = (state.documentViewerIndex + 1) % items.length;
+          render();
+        }
+        return;
+      }
       case "toggle-review-user": {
         const userId = target.dataset.userId || "";
         state.selectedReviewUserIds = state.selectedReviewUserIds.includes(userId)
