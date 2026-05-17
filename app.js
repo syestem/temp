@@ -2001,15 +2001,16 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const action = event.target.dataset.action;
     const file = event.target.files?.[0];
-    if (!file) return;
 
     if (action === "upload-document") {
+      if (!file) return;
       void uploadDocument(file);
       event.target.value = "";
       return;
     }
 
     if (action === "upload-profile-photo") {
+      if (!file) return;
       void uploadProfilePhoto(file);
       event.target.value = "";
       return;
