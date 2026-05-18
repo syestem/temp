@@ -192,6 +192,7 @@
     scheduleError: "",
     profilePhotoPreviewUrl: "",
     documentPreviewUrl: "",
+    digitalIdSessionId: "",
   };
 
   const content = document.getElementById("content");
@@ -743,29 +744,17 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   function renderAdminLogin(message = "") {
     state.loading = false;
-    content.innerHTML = `<section class="card card--wide admin-login-card">  <p class="card__eyebrow">Админ-панель</p>  <h1>Вход для администраторов</h1>  <p>Откройте панель с компьютера и авторизуйтесь через MAX. После входа будут доступны заявки, очередь, модерация и рассылки.</p>  ${message ? `<p class="section-note">${escapeHtml(message)}</p>` : ""}  <div class="actions"><button class="btn-primary" data-action="admin-login-max" type="button">Логин через MAX</button></div></section>`;
+    content.innerHTML = `<section class="card card--wide admin-login-card">  <p class="card__eyebrow">Админ-панель</p>  <h1>Вход через Цифровой ID MAX</h1>  <p>Откройте в MAX раздел «Цифровой ID», покажите QR и вставьте сюда ссылку session_id из QR. Backend проверит её через API Цифрового ID.</p>  ${message ? `<p class="section-note">${escapeHtml(message)}</p>` : ""}  <label class="field field--wide">    <span>session_id из QR</span>    <textarea id="digital-id-session-id" rows="4" placeholder="https://www.gosuslugi.ru/m...?...">${escapeHtml(state.digitalIdSessionId)}</textarea>  </label>  <div class="actions"><button class="btn-primary" data-action="admin-login-digital-id" type="button">Логин через MAX</button></div></section>`;
   }
 
-  async function startAdminLogin() {
-    try {
-      const result = await apiPost("/admin/auth/start", {});
-      if (!result?.auth_url) {
-        throw new Error("Backend не вернул ссылку авторизации MAX.");
-      }
-      window.location.href = result.auth_url;
-    } catch (error) {
-      pushAlert("error", "Не удалось начать вход", parseApiErrorMessage(error).message || String(error.message || error));
-      renderAdminLogin("Проверьте настройки MAX OAuth на backend.");
+  async function startAdminDigitalIdLogin() {
+    const sessionId = state.digitalIdSessionId.trim();
+    if (!sessionId) {
+      renderAdminLogin("Вставьте session_id из QR Цифрового ID.");
+      return;
     }
-  }
-
-  async function finishAdminLoginIfNeeded() {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code") || "";
-    const oauthState = params.get("state") || "";
-    if (!state.isAdminStandalone || !code || !oauthState) return false;
     try {
-      const result = await apiPost("/admin/auth/callback", { code, state: oauthState });
+      const result = await apiPost("/admin/auth/digital-id", { session_id: sessionId });
       state.adminToken = result.adminToken || "";
       if (!state.adminToken) {
         throw new Error("Backend не вернул adminToken.");
@@ -773,17 +762,14 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       sessionStorage.setItem("adminToken", state.adminToken);
       state.session = result.session;
       state.activeTab = "admin";
-      history.replaceState(null, "", location.pathname);
       await ensureAdminDataLoaded(true);
       state.loading = false;
       render();
-      return true;
     } catch (error) {
       sessionStorage.removeItem("adminToken");
       state.adminToken = "";
       pushAlert("error", "Вход не выполнен", parseApiErrorMessage(error).message || String(error.message || error));
-      renderAdminLogin("Попробуйте войти через MAX ещё раз.");
-      return true;
+      renderAdminLogin("Проверьте, что QR не устарел: он обновляется примерно раз в 30 секунд.");
     }
   }
 
@@ -1922,8 +1908,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       case "retry-session":
         void loadSession();
         return;
-      case "admin-login-max":
-        void startAdminLogin();
+      case "admin-login-digital-id":
+        void startAdminDigitalIdLogin();
         return;
       case "switch-tab":
         state.activeTab = target.dataset.tab;
@@ -2211,6 +2197,11 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return;
     }
 
+    if (event.target.id === "digital-id-session-id") {
+      state.digitalIdSessionId = event.target.value;
+      return;
+    }
+
     if (event.target.id === "broadcast-text") {
       state.broadcastText = event.target.value;
       return;
@@ -2327,10 +2318,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     if (!isConfigured()) {
       state.loading = false;
       render();
-      return;
-    }
-
-    if (await finishAdminLoginIfNeeded()) {
       return;
     }
 
