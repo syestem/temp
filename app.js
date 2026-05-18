@@ -1331,23 +1331,6 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function adminDirectoryRows() {
-    if (state.adminDirectoryCategory === "queue") {
-      return getFilteredAdminQueue().map((item) => ({
-        key: `queue-${item.id}`,
-        id: item.id,
-        photoUrl: item.profile_photo_signed_url || item.user?.profile_photo_url || item.profile_photo_url || "",
-        name: item.user?.full_name || item.full_name || "—",
-        maxUserId: item.max_user_id || item.user?.max_user_id || "—",
-        faculty: item.user?.faculty || item.faculty || "—",
-        groupName: item.user?.group_name || item.group_name || "—",
-        category: item.direction === "gym" ? "Спортзал" : "Бассейн",
-        period: monthLabel(item.target_year, item.target_month),
-        statusHtml: `<span class="status-chip ${escapeHtml(applicationStatusLabel(item.status).className)}">${escapeHtml(applicationStatusLabel(item.status).text)}</span>`,
-        selectable: true,
-        selected: state.selectedQueueApplicationIds.includes(String(item.id)),
-        actionsHtml: `<div class="admin-table-actions"><button class="btn-primary btn-small" data-action="issue-membership" data-application-id="${escapeHtml(item.id)}" ${state.issuingMembershipId ? "disabled" : ""}>${state.issuingMembershipId === item.id ? "Выдаём..." : "Выдать"}</button><button class="btn-secondary btn-small" data-action="issue-membership-current" data-application-id="${escapeHtml(item.id)}" ${(state.issuingMembershipId === item.id || state.cancellingApplicationId === item.id || state.issuingMembershipId) ? "disabled" : ""}>Выдать на текущий</button><button class="btn-danger btn-small" data-action="admin-cancel-application" data-application-id="${escapeHtml(item.id)}" ${state.cancellingApplicationId === item.id ? "disabled" : ""}>${state.cancellingApplicationId === item.id ? "Отменяем..." : "Отменить"}</button></div>`,
-      }));
-    }
     if (state.adminDirectoryCategory === "profiles") {
       return state.pendingReviews.map((user) => ({
         key: `profile-${user.max_user_id}`,
@@ -1415,21 +1398,22 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderAdminDirectoryTable() {
+    if (state.adminDirectoryCategory === "queue") {
+      state.adminDirectoryCategory = "applications";
+    }
     const sourceRows = adminDirectoryRows();
     const rows = filterAdminDirectoryRows(sourceRows);
     const faculties = getAdminDirectoryFaculties(sourceRows);
-    const categoryLabel = state.adminDirectoryCategory === "queue" ? "Очередь" : state.adminDirectoryCategory === "profiles" ? "Профили" : "Заявки";
+    const categoryLabel = state.adminDirectoryCategory === "profiles" ? "Профили" : "Заявки";
     const statusControls = state.adminDirectoryCategory === "applications" ? `<label class="field"><span>Статус</span><select id="admin-status-filter">${["queued", "approved", "issued", "cancelled"].map((status) => `<option value="${status}" ${state.adminStatusFilter === status ? "selected" : ""}>${status === "queued" ? "В очереди" : status === "approved" ? "Одобрено" : status === "issued" ? "Выдано" : "Отменено"}</option>`).join("")}</select></label>` : "";
-    const queueControls = state.adminDirectoryCategory === "queue" ? `<label class="field"><span>Месяц</span><select id="admin-queue-month-filter">${[`<option value="all">Все месяцы</option>`, ...Array.from(new Map(state.adminQueue.map((item) => { const value = `${item.target_year}-${String(item.target_month).padStart(2, "0")}`; return [value, `<option value="${value}" ${state.adminQueueMonthFilter === value ? "selected" : ""}>${monthLabel(item.target_year, item.target_month)}</option>`]; })).values())].join("")}</select></label>` : "";
     const directionControls = state.adminDirectoryCategory === "profiles" ? "" : `<label class="field"><span>Направление</span><select id="admin-directory-direction-filter"><option value="all">Все направления</option><option value="gym" ${state.adminDirectoryDirectionFilter === "gym" ? "selected" : ""}>Спортзал</option><option value="pool" ${state.adminDirectoryDirectionFilter === "pool" ? "selected" : ""}>Бассейн</option></select></label>`;
     const facultyControls = `<label class="field"><span>Факультет</span><select id="admin-directory-faculty-filter"><option value="all">Все факультеты</option>${faculties.map((faculty) => `<option value="${escapeHtml(faculty)}" ${state.adminDirectoryFacultyFilter === faculty ? "selected" : ""}>${escapeHtml(faculty)}</option>`).join("")}</select></label>`;
     const actionControls = state.adminDirectoryCategory === "profiles"
       ? `<div class="actions admin-bulk-actions"><button class="btn-primary btn-small" data-action="approve-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Одобрить выбранные</button><button class="btn-danger btn-small" data-action="reject-selected-users" ${!state.selectedReviewUserIds.length || state.verifyingUser ? "disabled" : ""}>Отклонить выбранные</button><button class="btn-secondary btn-small" data-action="delete-selected-users" ${!state.selectedReviewUserIds.length || state.managingAdmin ? "disabled" : ""}>Удалить профили</button></div>`
-      : state.adminDirectoryCategory === "queue"
-        ? `<div class="actions admin-bulk-actions"><button class="btn-primary btn-small" data-action="issue-selected-memberships" ${!state.selectedQueueApplicationIds.length || state.issuingMembershipId ? "disabled" : ""}>Выдать выбранные</button></div>`
-        : "";
-    const tableRows = rows.map((row) => `<tr><td data-label="Пользователь"><div class="admin-table-user">${row.selectable ? `<input class="admin-table-check" type="checkbox" data-action="${state.adminDirectoryCategory === "profiles" ? "toggle-review-user" : state.adminDirectoryCategory === "queue" ? "toggle-queue-application" : "noop"}" ${state.adminDirectoryCategory === "profiles" ? `data-user-id="${escapeHtml(row.id)}"` : state.adminDirectoryCategory === "queue" ? `data-application-id="${escapeHtml(row.id)}"` : ""} ${row.selected ? "checked" : ""}>` : ""}${row.photoUrl ? `<img class="admin-table-avatar" src="${escapeHtml(row.photoUrl)}" alt="Фото профиля">` : `<div class="admin-table-avatar admin-table-avatar--empty">Нет фото</div>`}<div><strong>${escapeHtml(row.name)}</strong><span class="admin-table-subline">${escapeHtml(row.category)} · ${escapeHtml(row.period)}</span></div></div></td><td data-label="MAX ID"><span class="admin-table-mono">${escapeHtml(row.maxUserId)}</span></td><td data-label="Факультет" class="admin-table-text">${escapeHtml(row.faculty)}</td><td data-label="Группа"><span class="admin-table-pill">${escapeHtml(row.groupName)}</span></td><td data-label="Категория" class="admin-table-nowrap">${escapeHtml(row.category)}</td><td data-label="Период" class="admin-table-nowrap">${escapeHtml(row.period)}</td><td data-label="Статус">${row.statusHtml}</td><td data-label="Действия">${row.actionsHtml}</td></tr>`).join("");
-    return `<section class="card card--wide admin-directory-card"><div class="admin-card-header"><div><p class="card__eyebrow">Единая таблица</p><h2>Пользователи по категориям</h2></div><div class="admin-table-count"><strong>${escapeHtml(rows.length)}</strong><span>из ${escapeHtml(sourceRows.length)}</span></div></div><div class="admin-toolbar admin-directory-toolbar"><label class="field field--search"><span>Поиск</span><input id="admin-directory-search" type="search" placeholder="ФИО, MAX ID, группа..." value="${escapeHtml(state.adminDirectorySearch)}"></label><label class="field"><span>Категория</span><select id="admin-directory-category"><option value="applications" ${state.adminDirectoryCategory === "applications" ? "selected" : ""}>Заявки</option><option value="queue" ${state.adminDirectoryCategory === "queue" ? "selected" : ""}>Очередь</option><option value="profiles" ${state.adminDirectoryCategory === "profiles" ? "selected" : ""}>Профили</option></select></label>${statusControls}${queueControls}${directionControls}${facultyControls}<div class="section-note admin-directory-summary">Категория: ${categoryLabel}. Фильтры применяются поверх текущей категории.</div>${actionControls}</div>${rows.length === 0 ? `<div class="empty-state">Нет записей под выбранные фильтры.</div>` : `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Пользователь</th><th>MAX ID</th><th>Факультет</th><th>Группа</th><th>Категория</th><th>Период</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${tableRows}</tbody></table></div>`}</section>`;
+      : "";
+    const isRefreshing = state.adminDirectoryCategory === "profiles" ? state.loadingPendingReviews : state.loadingAdminApplications;
+    const tableRows = rows.map((row) => `<tr><td data-label="Пользователь"><div class="admin-table-user">${row.selectable ? `<input class="admin-table-check" type="checkbox" data-action="toggle-review-user" data-user-id="${escapeHtml(row.id)}" ${row.selected ? "checked" : ""}>` : ""}${row.photoUrl ? `<img class="admin-table-avatar" src="${escapeHtml(row.photoUrl)}" alt="Фото профиля">` : `<div class="admin-table-avatar admin-table-avatar--empty">Нет фото</div>`}<div><strong>${escapeHtml(row.name)}</strong><span class="admin-table-subline">${escapeHtml(row.category)} · ${escapeHtml(row.period)}</span></div></div></td><td data-label="MAX ID"><span class="admin-table-mono">${escapeHtml(row.maxUserId)}</span></td><td data-label="Факультет" class="admin-table-text">${escapeHtml(row.faculty)}</td><td data-label="Группа"><span class="admin-table-pill">${escapeHtml(row.groupName)}</span></td><td data-label="Категория" class="admin-table-nowrap">${escapeHtml(row.category)}</td><td data-label="Период" class="admin-table-nowrap">${escapeHtml(row.period)}</td><td data-label="Статус">${row.statusHtml}</td><td data-label="Действия">${row.actionsHtml}</td></tr>`).join("");
+    return `<section class="card card--wide admin-directory-card"><div class="admin-card-header"><div><p class="card__eyebrow">Единая таблица</p><h2>Пользователи по категориям</h2></div><div class="admin-card-header__actions"><button class="btn-secondary btn-small" data-action="refresh-admin-directory" ${isRefreshing ? "disabled" : ""}>${isRefreshing ? "Обновляем..." : "Обновить"}</button><div class="admin-table-count"><strong>${escapeHtml(rows.length)}</strong><span>из ${escapeHtml(sourceRows.length)}</span></div></div></div><div class="admin-toolbar admin-directory-toolbar"><label class="field field--search"><span>Поиск</span><input id="admin-directory-search" type="search" placeholder="ФИО, MAX ID, группа..." value="${escapeHtml(state.adminDirectorySearch)}"></label><label class="field"><span>Категория</span><select id="admin-directory-category"><option value="applications" ${state.adminDirectoryCategory === "applications" ? "selected" : ""}>Заявки</option><option value="profiles" ${state.adminDirectoryCategory === "profiles" ? "selected" : ""}>Профили</option></select></label>${statusControls}${directionControls}${facultyControls}<div class="section-note admin-directory-summary">Категория: ${categoryLabel}. Фильтры применяются поверх текущей категории.</div>${actionControls}</div>${rows.length === 0 ? `<div class="empty-state">Нет записей под выбранные фильтры.</div>` : `<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Пользователь</th><th>MAX ID</th><th>Факультет</th><th>Группа</th><th>Категория</th><th>Период</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${tableRows}</tbody></table></div>`}</section>`;
   }
 
   async function addAdmin() {
@@ -2117,6 +2101,13 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       case "refresh-admin-queue":
         void loadAdminQueue();
         return;
+      case "refresh-admin-directory":
+        if (state.adminDirectoryCategory === "profiles") {
+          void loadPendingReviews();
+        } else {
+          void loadAdminApplications();
+        }
+        return;
       case "issue-membership":
         void issueMembership(Number(target.dataset.applicationId));
         return;
@@ -2261,7 +2252,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     }
 
     if (event.target.id === "admin-directory-category") {
-      state.adminDirectoryCategory = event.target.value;
+      state.adminDirectoryCategory = event.target.value === "profiles" ? "profiles" : "applications";
       state.adminDirectorySearch = "";
       state.adminDirectoryDirectionFilter = "all";
       state.adminDirectoryFacultyFilter = "all";
