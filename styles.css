@@ -320,12 +320,25 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
   border: 1px solid var(--line);
-  overflow-wrap: anywhere;
 }
 
 .admin-table-mono {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.admin-table-pill,
+.admin-table-nowrap {
+  white-space: nowrap;
+  word-break: keep-all;
+}
+
+.admin-table-text {
+  min-width: 160px;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .admin-card-header {
