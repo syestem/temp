@@ -330,15 +330,11 @@
   }
 
   function isConfigured() {
-    return Boolean(state.apiBaseUrl && !state.apiBaseUrl.includes("__"));
+    return Boolean(state.apiBaseUrl && !state.apiBaseUrl.includes("__") && /^https:\/\//i.test(state.apiBaseUrl));
   }
 
   function buildApiHeaders(extra = {}) {
-    const headers = { ...extra };
-    if (state.apiBaseUrl.includes("ngrok")) {
-      headers["ngrok-skip-browser-warning"] = "true";
-    }
-    return headers;
+    return { ...extra };
   }
 
   function buildPayload(extra = {}) {
@@ -1950,7 +1946,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     if (state.session.subscription_ok === false) {
       const channels = state.session.required_channels || [];
-      content.innerHTML = `  <section class="card channel-gate-card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на все обязательные каналы. После подписки закройте и заново откройте mini-app.</p>    <div class="channel-gate-links">      ${channels.map((channel, index) => `<a class="channel-link-btn ${index === 0 ? "channel-link-btn--primary" : index === 1 ? "channel-link-btn--secondary" : "channel-link-btn--accent"}" href="${escapeHtml(channel.link || "#")}" target="_blank" rel="noreferrer">${index === 0 ? "📢" : index === 1 ? "📰" : "🎬"} ${escapeHtml(channel.title || `Канал ${index + 1}`)}</a>`).join("")}    </div>  </section>${renderDeveloperFooter()}`;
+      content.innerHTML = `  <section class="card channel-gate-card">    <p class="card__eyebrow">Доступ ограничен</p>    <h2>Подпишитесь на обязательные каналы</h2>    <p>Для работы бота и mini-app нужна подписка на все обязательные каналы. Откройте каналы в MAX, подпишитесь, затем закройте и заново откройте mini-app.</p>    <div class="channel-gate-links">      ${channels.map((channel, index) => `<span class="channel-link-btn ${index === 0 ? "channel-link-btn--primary" : index === 1 ? "channel-link-btn--secondary" : "channel-link-btn--accent"}">${index === 0 ? "📢" : index === 1 ? "📰" : "🎬"} ${escapeHtml(channel.title || `Канал ${index + 1}`)}</span>`).join("")}    </div>  </section>${renderDeveloperFooter()}`;
       return;
     }
 
