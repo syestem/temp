@@ -1222,6 +1222,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   async function sendBroadcast() {
     if (!state.session?.is_admin) return;
+    if (state.sendingBroadcast) return;
     const text = state.broadcastText.trim();
     if (!text) {
       pushAlert("error", "Введите текст", "Текст рассылки обязателен.");
@@ -1269,6 +1270,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   async function saveQueueLimits() {
     if (!state.session?.is_admin) return;
+    if (state.savingQueueLimits) return;
     state.savingQueueLimits = true;
     render();
     try {
