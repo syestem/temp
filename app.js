@@ -314,6 +314,21 @@
     };
   }
 
+  function collectBugReportDiagnostics() {
+    return {
+      url: window.location.href,
+      path: window.location.pathname,
+      activeTab: state.activeTab,
+      apiBaseUrl: state.apiBaseUrl,
+      userAgent: navigator.userAgent,
+      online: typeof navigator.onLine === "boolean" ? navigator.onLine : null,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      theme: state.theme,
+      isAdminStandalone: state.isAdminStandalone,
+      hasSession: Boolean(state.session),
+    };
+  }
+
   function sleep(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
@@ -971,11 +986,12 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       const formData = new FormData();
       appendAuthFormData(formData);
       formData.append("description", description);
+      formData.append("clientDiagnostics", JSON.stringify(collectBugReportDiagnostics()));
       screenshots.forEach((file) => formData.append("screenshots", file));
-      await apiMultipart("/bug-report", formData);
+      const result = await apiMultipart("/bug-report", formData);
       state.bugReportDescription = "";
       state.bugReportScreenshots = [];
-      pushAlert("success", "Отчёт отправлен", "Администраторы получили описание проблемы и скриншоты.");
+      pushAlert("success", "Отчёт отправлен", `ID отчёта: ${result?.report_id || "см. логи"}. Администраторы получили описание проблемы.`);
     } catch (error) {
       pushAlert("error", "Не удалось отправить отчёт", error.message || "Повторите попытку позже.");
     } finally {
@@ -1579,7 +1595,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   }
 
   function renderTabs() {
-    const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
+    const tabs = [["home", "\u0410\u0431\u043e\u043d\u0435\u043c\u0435\u043d\u0442"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
 
     if (state.isAdminStandalone && state.session?.is_admin) {
       tabs.push(["admin", "\u0410\u0434\u043c\u0438\u043d"]);
