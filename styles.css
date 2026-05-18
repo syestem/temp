@@ -229,9 +229,10 @@
 .admin-table-wrap {
   margin-top: 14px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 22px;
   overflow: hidden;
   background: var(--surface-muted);
+  box-shadow: var(--shadow-soft);
 }
 
 .admin-table {
@@ -241,9 +242,9 @@
 
 .admin-table th,
 .admin-table td {
-  padding: 12px 14px;
+  padding: 14px 16px;
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
   border-bottom: 1px solid var(--line);
 }
 
@@ -255,15 +256,36 @@
   background: var(--surface-strong);
 }
 
+.admin-table tbody tr {
+  transition: background 0.16s ease, transform 0.16s ease;
+}
+
+.admin-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--surface-strong) 28%, transparent);
+}
+
 .admin-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
 .admin-table-user {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: auto 56px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
+}
+
+.admin-table-user strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-table-subline {
+  display: none;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .admin-table-avatar {
@@ -285,6 +307,64 @@
 .admin-table-actions {
   display: grid;
   gap: 8px;
+  min-width: 170px;
+}
+
+.admin-table-mono,
+.admin-table-pill {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+  border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.admin-table-mono {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.admin-card-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-table-count {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  min-width: 86px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-muted) 74%, transparent);
+}
+
+.admin-table-count strong {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 2rem;
+  line-height: 0.9;
+}
+
+.admin-table-count span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-directory-toolbar {
+  align-items: end;
+}
+
+.admin-directory-summary,
+.admin-bulk-actions {
+  min-width: 0;
 }
 
 .admin-hero {
@@ -853,6 +933,7 @@ textarea {
 input,
 select {
   width: 100%;
+  min-width: 0;
   min-height: 48px;
   padding: 12px 14px;
   border-radius: 16px;
@@ -885,6 +966,8 @@ button {
   border-radius: 16px;
   cursor: pointer;
   font-weight: 700;
+  white-space: normal;
+  overflow-wrap: anywhere;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
 }
 
@@ -1925,8 +2008,16 @@ button:disabled {
   }
 
   .app-shell--admin .admin-toolbar {
-    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     align-items: end;
+  }
+
+  .app-shell--admin .admin-directory-toolbar {
+    grid-template-columns: minmax(260px, 1.4fr) repeat(auto-fit, minmax(170px, 1fr));
+  }
+
+  .app-shell--admin .admin-directory-toolbar .field--search {
+    grid-column: span 2;
   }
 
   .app-shell--admin .admin-toolbar .actions {
@@ -1956,7 +2047,7 @@ button:disabled {
   }
 
   .app-shell--admin .admin-table {
-    min-width: 1060px;
+    min-width: 1120px;
   }
 
   .app-shell--admin .admin-table th {
@@ -2110,6 +2201,22 @@ button:disabled {
     background: color-mix(in srgb, var(--surface-muted) 70%, transparent);
   }
 
+  .admin-card-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
+
+  .admin-table-count {
+    min-width: 70px;
+    padding: 8px 10px;
+    border-radius: 16px;
+  }
+
+  .admin-table-count strong {
+    font-size: 1.7rem;
+  }
+
   .admin-settings-grid {
     gap: 12px;
   }
@@ -2145,6 +2252,7 @@ button:disabled {
     border-radius: 16px;
     background: var(--surface);
     overflow: hidden;
+    box-shadow: var(--shadow-soft);
   }
 
   .admin-table td {
@@ -2171,7 +2279,11 @@ button:disabled {
   }
 
   .admin-table-user {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: auto 48px minmax(0, 1fr);
+  }
+
+  .admin-table-subline {
+    display: block;
   }
 
   .admin-table-avatar {
@@ -2181,6 +2293,7 @@ button:disabled {
 
   .admin-table-actions {
     grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .admin-item {
