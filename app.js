@@ -1743,6 +1743,14 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     return `<div class="document-viewer" role="dialog" aria-modal="true" aria-label="Документы пользователя">  <div class="document-viewer__panel">    <div class="document-viewer__header">      <div>        <p class="card__eyebrow">Документы</p>        <h3>${escapeHtml(user.full_name || "Без имени")}</h3>        <span>${escapeHtml(item.title)} ${escapeHtml(state.documentViewerIndex + 1)}/${escapeHtml(items.length)}</span>      </div>      <button class="icon-button document-viewer__close" data-action="close-documents" aria-label="Закрыть">×</button>    </div>    <div class="document-viewer__body">      <button class="document-viewer__nav" data-action="prev-document" ${items.length <= 1 ? "disabled" : ""} type="button">Назад</button>      <img class="document-viewer__image" src="${escapeHtml(item.url)}" alt="${escapeHtml(item.title)}">      <button class="document-viewer__nav" data-action="next-document" ${items.length <= 1 ? "disabled" : ""} type="button">Вперёд</button>    </div>  </div></div>`;
   }
 
+  function renderAdminHero() {
+    const pendingCount = state.pendingReviews.length;
+    const queueCount = getFilteredAdminQueue().length;
+    const applicationCount = state.adminApplications.length;
+    const adminCount = state.adminList.length;
+    return `<section class="admin-hero">  <div class="admin-hero__copy">    <p class="card__eyebrow">Web admin</p>    <h1>Панель управления</h1>    <p>Быстрый контроль заявок, очереди, модерации и сервисных режимов с ПК и телефона.</p>  </div>  <div class="admin-kpi-grid" aria-label="Сводка админ-панели">    <div class="admin-kpi"><span>Проверка</span><strong>${escapeHtml(pendingCount)}</strong></div>    <div class="admin-kpi"><span>Очередь</span><strong>${escapeHtml(queueCount)}</strong></div>    <div class="admin-kpi"><span>Заявки</span><strong>${escapeHtml(applicationCount)}</strong></div>    <div class="admin-kpi"><span>Админы</span><strong>${escapeHtml(adminCount)}</strong></div>  </div></section>`;
+  }
+
   renderAdminTab = function renderAdminTabStable() {
     if (!state.session?.is_admin) {
       return `<section class="card"><p>Доступ запрещён</p></section>`;
@@ -1786,7 +1794,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
     const adminControlsSection = `<section class="card card--wide">  <p class="card__eyebrow">Управление</p>  <h2>Администраторы</h2>  <p class="section-note">Добавляйте и удаляйте администраторов по их MAX ID.</p>  <div class="admin-add-form">    <input type="text" id="new-admin-id" placeholder="MAX ID пользователя" value="${escapeHtml(state.newAdminId)}" ${state.managingAdmin ? "disabled" : ""}>    <button class="btn-primary" data-action="add-admin" ${state.managingAdmin ? "disabled" : ""}>${state.managingAdmin ? "Добавление..." : "Добавить админа"}</button>  </div>  ${state.loadingAdmins ? `<p>Загрузка списка...</p>` : `<div class="admin-list">    <h3>Текущие администраторы:</h3>    ${state.adminList.length === 0 ? `<p>Список пуст</p>` : `<ul class="admin-items">${state.adminList.map((adminId) => `      <li class="admin-item">        <span>${escapeHtml(adminId)}</span>        ${adminId === state.primaryAdminId ? `<span class="badge">Главный</span>` : state.confirmRemoveAdminId === adminId ? `<div class="actions"><button class="btn-danger btn-small" data-action="confirm-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Подтвердить удаление</button><button class="btn-secondary btn-small" data-action="cancel-remove-admin">Отмена</button></div>` : `<button class="btn-danger btn-small" data-action="start-remove-admin" data-admin-id="${escapeHtml(adminId)}" ${state.managingAdmin ? "disabled" : ""}>Удалить</button>`}      </li>`).join("")}</ul>`}  </div>`}</section>`;
 
-    return `${renderAdminDirectoryTable()}${rejectReasonDialog}${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}${renderDocumentViewer()}`;
+    const settingsSections = `<div class="admin-settings-grid">${broadcastSection}${maintenanceSection}${queueLimitsSection}${adminControlsSection}</div>`;
+    return `${renderAdminHero()}<div class="admin-workspace">${renderAdminDirectoryTable()}${rejectReasonDialog}</div>${settingsSections}${renderDocumentViewer()}`;
   };
 
   function getRenderContext() {

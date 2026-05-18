@@ -287,6 +287,82 @@
   gap: 8px;
 }
 
+.admin-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--brand) 28%, var(--line));
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 10% 10%, color-mix(in srgb, var(--brand) 18%, transparent), transparent 32%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), color-mix(in srgb, var(--surface) 96%, transparent));
+  box-shadow: var(--shadow);
+}
+
+.admin-hero__copy {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.admin-hero__copy h1 {
+  margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+
+.admin-hero__copy p {
+  margin: 0;
+  max-width: 680px;
+  color: var(--muted-strong);
+  font-size: 1.04rem;
+  line-height: 1.5;
+}
+
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-kpi {
+  display: grid;
+  align-content: space-between;
+  min-height: 118px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface-muted) 82%, transparent);
+}
+
+.admin-kpi span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-kpi strong {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 3rem;
+  line-height: 0.9;
+}
+
+.admin-workspace {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-settings-grid {
+  display: grid;
+  gap: 16px;
+}
+
 .channel-gate-card {
   display: grid;
   gap: 14px;
@@ -1835,7 +1911,130 @@ button:disabled {
   }
 }
 
+@media (min-width: 980px) {
+  .app-shell--admin {
+    padding-inline: 28px;
+  }
+
+  .app-shell--admin .content {
+    gap: 22px;
+  }
+
+  .app-shell--admin .card {
+    padding: 24px;
+  }
+
+  .app-shell--admin .admin-toolbar {
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    align-items: end;
+  }
+
+  .app-shell--admin .admin-toolbar .actions {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .app-shell--admin .admin-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .app-shell--admin .admin-settings-grid .card--wide {
+    grid-column: auto;
+    min-height: 100%;
+  }
+
+  .app-shell--admin .admin-add-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .app-shell--admin .admin-table-wrap {
+    overflow-x: auto;
+  }
+
+  .app-shell--admin .admin-table {
+    min-width: 1060px;
+  }
+
+  .app-shell--admin .admin-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .app-shell--admin .admin-table tbody tr:hover {
+    background: color-mix(in srgb, var(--brand) 4%, transparent);
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-shell--admin {
+    width: min(100%, 1480px);
+  }
+
+  .app-shell--admin .admin-settings-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 719px) {
+  .app-shell {
+    padding: 12px 10px 42px;
+  }
+
+  .app-shell--admin .content {
+    margin-top: 12px;
+    gap: 12px;
+  }
+
+  .app-shell--admin .card {
+    border-radius: 20px;
+    padding: 16px;
+  }
+
+  .admin-hero {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  .admin-hero__copy h1 {
+    font-size: clamp(2.2rem, 13vw, 3.4rem);
+  }
+
+  .admin-hero__copy p {
+    font-size: 0.96rem;
+  }
+
+  .admin-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .admin-kpi {
+    min-height: 92px;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .admin-kpi strong {
+    font-size: 2.3rem;
+  }
+
+  .admin-login-card {
+    margin-top: 12vh;
+  }
+
+  .admin-login-code {
+    padding: 18px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.12em;
+  }
+
   .tab-switcher {
     padding: 6px;
     gap: 6px;
@@ -1904,6 +2103,17 @@ button:disabled {
     gap: 14px;
   }
 
+  .admin-toolbar {
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface-muted) 70%, transparent);
+  }
+
+  .admin-settings-grid {
+    gap: 12px;
+  }
+
   .admin-toolbar .actions,
   .admin-review-media,
   .application__footer {
@@ -1942,6 +2152,10 @@ button:disabled {
     padding: 10px 12px;
   }
 
+  .admin-table td[data-label="Действия"] {
+    background: color-mix(in srgb, var(--surface-muted) 76%, transparent);
+  }
+
   .admin-table td:last-child {
     border-bottom: 0;
   }
@@ -1965,15 +2179,22 @@ button:disabled {
     height: 48px;
   }
 
+  .admin-table-actions {
+    grid-template-columns: 1fr;
+  }
+
   .admin-item {
     display: grid;
     justify-content: start;
+    width: 100%;
+    border-radius: 16px;
   }
 
   .admin-item .btn-small,
   .admin-review-media .btn-small,
   .admin-toolbar .btn-primary,
   .admin-toolbar .btn-secondary,
+  .admin-table-actions .btn-small,
   .application__footer .btn-small {
     width: 100%;
   }
