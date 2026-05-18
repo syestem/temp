@@ -375,6 +375,20 @@ body {
   max-width: 680px;
 }
 
+.admin-login-code {
+  margin: 22px 0 12px;
+  padding: 24px;
+  border-radius: 22px;
+  border: 2px solid color-mix(in srgb, var(--brand) 42%, transparent);
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-strong));
+  color: var(--ink);
+  font-size: clamp(34px, 8vw, 64px);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-align: center;
+  box-shadow: var(--shadow-soft);
+}
+
 .card__eyebrow,
 .stat__label,
 .doc-tile__tag,

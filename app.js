@@ -193,6 +193,8 @@
     profilePhotoPreviewUrl: "",
     documentPreviewUrl: "",
     digitalIdSessionId: "",
+    adminLoginCode: "",
+    adminLoginStatus: "",
   };
 
   const content = document.getElementById("content");
@@ -200,6 +202,7 @@
   let membershipTimerId = null;
   let poolIndexPromise = null;
   let adminDataPromise = null;
+  let adminLoginPollTimerId = null;
 
   function setLocalPreview(kind, file) {
     const stateKey = kind === "profile" ? "profilePhotoPreviewUrl" : "documentPreviewUrl";
@@ -744,21 +747,46 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
 
   function renderAdminLogin(message = "") {
     state.loading = false;
-    content.innerHTML = `<section class="card card--wide admin-login-card">  <p class="card__eyebrow">Админ-панель</p>  <h1>Вход через Цифровой ID MAX</h1>  <p>Откройте в MAX раздел «Цифровой ID», покажите QR и вставьте сюда ссылку session_id из QR. Backend проверит её через API Цифрового ID.</p>  ${message ? `<p class="section-note">${escapeHtml(message)}</p>` : ""}  <label class="field field--wide">    <span>session_id из QR</span>    <textarea id="digital-id-session-id" rows="4" placeholder="https://www.gosuslugi.ru/m...?...">${escapeHtml(state.digitalIdSessionId)}</textarea>  </label>  <div class="actions"><button class="btn-primary" data-action="admin-login-digital-id" type="button">Логин через MAX</button></div></section>`;
+    const codeBlock = state.adminLoginCode
+      ? `<div class="admin-login-code" aria-label="Код входа">${escapeHtml(state.adminLoginCode)}</div><p class="section-note">Отправьте этот код сообщением боту MAX с телефона. После подтверждения эта страница войдёт автоматически.</p>`
+      : `<p class="section-note">Нажмите кнопку, получите одноразовый код и отправьте его боту MAX.</p>`;
+    content.innerHTML = `<section class="card card--wide admin-login-card">  <p class="card__eyebrow">Админ-панель</p>  <h1>Вход через бота MAX</h1>  <p>Web-админка открывается на компьютере, а MAX ID подтверждается в чате с ботом на телефоне. QR и скриншоты не нужны.</p>  ${message ? `<p class="section-note">${escapeHtml(message)}</p>` : ""}  ${codeBlock}  ${state.adminLoginStatus ? `<p class="section-note">${escapeHtml(state.adminLoginStatus)}</p>` : ""}  <div class="actions"><button class="btn-primary" data-action="admin-create-login-code" type="button">${state.adminLoginCode ? "Получить новый код" : "Получить код входа"}</button></div></section>`;
   }
 
-  async function startAdminDigitalIdLogin() {
-    const sessionId = state.digitalIdSessionId.trim();
-    if (!sessionId) {
-      renderAdminLogin("Вставьте session_id из QR Цифрового ID.");
-      return;
+  function stopAdminLoginPolling() {
+    if (adminLoginPollTimerId) {
+      clearTimeout(adminLoginPollTimerId);
+      adminLoginPollTimerId = null;
     }
+  }
+
+  async function createAdminLoginCode() {
     try {
-      const result = await apiPost("/admin/auth/digital-id", { session_id: sessionId });
+      stopAdminLoginPolling();
+      const result = await apiPost("/admin/auth/challenge", {});
+      state.adminLoginCode = result.code || "";
+      state.adminLoginStatus = "Ожидаем подтверждение в MAX...";
+      renderAdminLogin();
+      pollAdminLoginCode();
+    } catch (error) {
+      pushAlert("error", "Не удалось создать код", parseApiErrorMessage(error).message || String(error.message || error));
+      renderAdminLogin("Проверьте подключение к API backend.");
+    }
+  }
+
+  async function pollAdminLoginCode() {
+    if (!state.adminLoginCode || state.adminToken) return;
+    try {
+      const result = await apiPost("/admin/auth/challenge/check", { code: state.adminLoginCode });
+      if (result.status !== "approved") {
+        adminLoginPollTimerId = setTimeout(pollAdminLoginCode, 2000);
+        return;
+      }
       state.adminToken = result.adminToken || "";
       if (!state.adminToken) {
         throw new Error("Backend не вернул adminToken.");
       }
+      stopAdminLoginPolling();
       sessionStorage.setItem("adminToken", state.adminToken);
       state.session = result.session;
       state.activeTab = "admin";
@@ -768,8 +796,9 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     } catch (error) {
       sessionStorage.removeItem("adminToken");
       state.adminToken = "";
+      stopAdminLoginPolling();
       pushAlert("error", "Вход не выполнен", parseApiErrorMessage(error).message || String(error.message || error));
-      renderAdminLogin("Проверьте, что QR не устарел: он обновляется примерно раз в 30 секунд.");
+      renderAdminLogin("Создайте новый код и отправьте его боту MAX.");
     }
   }
 
@@ -1908,8 +1937,8 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       case "retry-session":
         void loadSession();
         return;
-      case "admin-login-digital-id":
-        void startAdminDigitalIdLogin();
+      case "admin-create-login-code":
+        void createAdminLoginCode();
         return;
       case "switch-tab":
         state.activeTab = target.dataset.tab;
