@@ -558,6 +558,30 @@ body {
   box-shadow: var(--shadow-soft);
 }
 
+.external-admin-footer {
+  display: grid;
+  margin-top: 4px;
+}
+
+.external-admin-link,
+.maintenance-admin-banner__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.external-admin-link {
+  width: 100%;
+  color: var(--brand-contrast);
+  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--brand) 24%, transparent);
+}
+
 .card__eyebrow,
 .stat__label,
 .doc-tile__tag,

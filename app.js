@@ -1599,7 +1599,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
   function renderTabs() {
     const tabs = [["home", "\u0413\u043b\u0430\u0432\u043d\u0430\u044f"], ["application", "\u0417\u0430\u044f\u0432\u043a\u0438"], ["schedule", "\u0420\u0430\u0441\u043f\u0438\u0441\u0430\u043d\u0438\u0435"], ["profile", "\u041f\u0440\u043e\u0444\u0438\u043b\u044c"]];
 
-    if (state.session?.is_admin) {
+    if (state.isAdminStandalone && state.session?.is_admin) {
       tabs.push(["admin", "\u0410\u0434\u043c\u0438\u043d"]);
     }
 
@@ -1650,9 +1650,17 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
     return `<div class="bug-report-footer"><button class="btn-bug-report" data-action="switch-tab" data-tab="bug-report">Сообщить об ошибке</button></div>`;
   }
 
+  function renderExternalAdminLink() {
+    if (state.isAdminStandalone || !state.session?.is_admin) return "";
+    return `<div class="external-admin-footer"><a class="external-admin-link" href="https://syestem.github.io/temp/admin.html" target="_blank" rel="noreferrer">Открыть web-админку</a></div>`;
+  }
+
   function renderMaintenanceAdminBanner() {
     if (!state.session?.is_admin || !state.maintenanceEnabled) return "";
-    return `<section class="maintenance-admin-banner" role="status">  <div>    <strong>Техработы включены</strong>    <span>${escapeHtml(state.maintenanceMessage || "Пользователи видят экран техработ, бот отвечает сообщением о недоступности.")}</span>  </div>  <button class="btn-warning btn-small" data-action="switch-tab" data-tab="admin" type="button">Открыть управление</button></section>`;
+    const action = state.isAdminStandalone
+      ? `<button class="btn-warning btn-small" data-action="switch-tab" data-tab="admin" type="button">Открыть управление</button>`
+      : `<a class="btn-warning btn-small maintenance-admin-banner__link" href="https://syestem.github.io/temp/admin.html" target="_blank" rel="noreferrer">Открыть управление</a>`;
+    return `<section class="maintenance-admin-banner" role="status">  <div>    <strong>Техработы включены</strong>    <span>${escapeHtml(state.maintenanceMessage || "Пользователи видят экран техработ, бот отвечает сообщением о недоступности.")}</span>  </div>  ${action}</section>`;
   }
 
   function renderDeveloperFooter() {
@@ -1914,7 +1922,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return renderScheduleTab();
     }
     if (state.activeTab === "admin") {
-      return renderAdminTab();
+      return state.isAdminStandalone ? renderAdminTab() : renderHomeTab(profile, activeApplication, verification, membershipAccess);
     }
     if (state.activeTab === "bug-report") {
       return renderBugReportTab();
@@ -1951,7 +1959,7 @@ return {  eyebrow: "Следующий шаг",  title: profile.verification_sta
       return;
     }
 
-    content.innerHTML = `${state.isAdminStandalone ? "" : renderTabs()}${renderMaintenanceAdminBanner()}${renderActiveTab()}${state.isAdminStandalone ? "" : renderBugReportButton()}${renderDeveloperFooter()}${renderMembershipModal()}`;
+    content.innerHTML = `${renderTabs()}${renderMaintenanceAdminBanner()}${renderActiveTab()}${state.isAdminStandalone ? "" : `${renderExternalAdminLink()}${renderBugReportButton()}`}${renderDeveloperFooter()}${renderMembershipModal()}`;
     if (state.membershipModalOpen) {
       const membershipPhoto = content.querySelector(".membership-card__photo img");
       if (membershipPhoto) {
